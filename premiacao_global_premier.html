@@ -2019,7 +2019,7 @@ function renderResumo() {
       <td>${r.supervisor}</td>
       <td style="font-size:12px;max-width:200px">${r.servico}</td>
       <td style="text-align:center">${r.faltas}</td>
-      <td style="text-align:center">${r.qtd} ${r.unidade}</td>
+      <td style="text-align:center">${r.qtd} ${pluralUnidade(r.qtd, r.unidade)}</td>
       <td>R$ ${r.valorUnit.toFixed(2)}</td>
       <td class="premiacao-val">R$ ${r.premiacao.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
     tbody.appendChild(tr);
