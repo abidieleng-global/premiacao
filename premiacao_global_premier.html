@@ -712,7 +712,6 @@
   <div class="tab" onclick="goTab('lancamento')">③ Lançamento</div>
   <div class="tab" onclick="goTab('resumo')">④ Resumo & Export</div>
   <div class="tab" onclick="goTab('historico')">⑤ Histórico</div>
-  <div class="tab" onclick="goTab('logs')">⑥ Auditoria</div>
   <div class="tab" onclick="goTab('admin')">⚙ Admin</div>
 </div>
 
@@ -873,18 +872,7 @@
     </div>
   </div>
 
-  <!-- ══════════════ PÁGINA 6 – AUDITORIA ══════════════ -->
-  <div class="page" id="page-logs">
-    <div class="section-title">Auditoria de Exportações</div>
-    <div class="info-box">
-      Registro completo de todas as exportações feitas. Cada vez que um engenheiro exportar o Excel, fica registrado aqui com <strong>data, hora e todos os valores</strong>.
-    </div>
-    <div id="logs-container">
-      <div class="no-data">Nenhuma exportação registrada ainda.</div>
-    </div>
-  </div>
-
-  <!-- ══════════════ PÁGINA 7 – ADMIN ══════════════ -->
+  <!-- ══════════════ PÁGINA 6 – ADMIN ══════════════ -->
   <div class="page" id="page-admin">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <div class="section-title" style="margin-bottom:0;flex:1">Administração</div>
@@ -912,7 +900,7 @@
       <div class="section-title" style="font-size:15px;">Serviços e Preços</div>
       <div class="table-wrap" style="margin-bottom:12px;">
         <table id="tabela-servicos-admin">
-          <thead><tr><th>Código</th><th>Serviço</th><th>Unidade</th><th>Valor Unit. (R$)</th><th></th></tr></thead>
+          <thead><tr><th>Código</th><th>Serviço</th><th>Unidade</th><th>Profissional (R$)</th><th>Ajudante (R$)</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -924,7 +912,8 @@
             <option>APT</option><option>BLOCO</option><option>PAV</option><option>M²</option><option>UN</option>
           </select>
         </div>
-        <div class="form-group"><label>Valor (R$)</label><input type="number" id="adm-sv-valor" step="0.01" placeholder="0,00"></div>
+        <div class="form-group"><label>Profissional (R$)</label><input type="number" id="adm-sv-valor-prof" step="0.01" placeholder="0,00"></div>
+        <div class="form-group"><label>Ajudante (R$)</label><input type="number" id="adm-sv-valor-ajud" step="0.01" placeholder="0,00"></div>
       </div>
       <button class="btn btn-primary btn-sm" onclick="adicionarServico()">+ Adicionar Serviço</button>
     </div>
@@ -1024,48 +1013,48 @@ const DADOS_INICIAIS = {
   ],
   servicos: [
     { cod: '00.000.001.005', nome: 'FUNDAÇÃO RADIER',         unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.002.008', nome: 'PAREDE DE CONCRETO E LAJE', unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.003.000', nome: 'RESERVATÓRIO INFERIOR', unidade: 'BLOCO', valor: 0 },
+    { cod: '00.000.002.008', nome: 'PAREDE DE CONCRETO E LAJE', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.003.000', nome: 'RESERVATÓRIO INFERIOR', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.004.003', nome: 'ESTUCAMENTO DE FAQUETA',  unidade: 'BLOCO',   valor: 0 },
     { cod: '00.000.005.003', nome: 'LIMPEZA GROSSA',          unidade: 'BLOCO',   valor: 0 },
     { cod: '00.000.006.003', nome: 'TESTE ELÉTRICO',          unidade: 'APT',   valor: 0 },
-    { cod: '00.000.007.002', nome: 'INSTALAÇÃO SANITÁRIA (ESGOTO)', unidade: 'APT', valor: 0 },
-    { cod: '00.000.008.002', nome: 'INSTALAÇÃO HIDRÁULICA (AGUA FRIA)', unidade: 'APT', valor: 0 },
+    { cod: '00.000.007.002', nome: 'INSTALAÇÃO SANITÁRIA (ESGOTO)', unidade: 'APT', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.008.002', nome: 'INSTALAÇÃO HIDRÁULICA (AGUA FRIA)', unidade: 'APT', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.009.003', nome: 'DRENO AR CONDICIONADO',   unidade: 'BLOCO',   valor: 0 },
-    { cod: '00.000.010.004', nome: 'ESTRUTURA DE RESERVATÓRIO SUPERIOR', unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.011.003', nome: 'INSTALAÇÕES DO BARRILETE E RESERVATÓRIO SUPERIOR', unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.012.004', nome: 'CALÇADA E IMPERMEABILIZAÇÃO EXTERNA', unidade: 'BLOCO', valor: 0 },
+    { cod: '00.000.010.004', nome: 'ESTRUTURA DE RESERVATÓRIO SUPERIOR', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.011.003', nome: 'INSTALAÇÕES DO BARRILETE E RESERVATÓRIO SUPERIOR', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.012.004', nome: 'CALÇADA E IMPERMEABILIZAÇÃO EXTERNA', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.013.003', nome: 'TEXTURA EXTERNA',         unidade: 'BLOCO',   valor: 0 },
-    { cod: '00.000.014.004', nome: 'CENTRO DE MEDIÇÕES - ESTRUTURA', unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.015.003', nome: 'LIXAMENTO DE PAREDE E TETO', unidade: 'APT', valor: 0 },
-    { cod: '00.000.016.003', nome: 'CAVALETE E TESTE HIDRÁULICO', unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.017.002', nome: 'ESTRUTURA METÁLICA DE COBERTA', unidade: 'BLOCO', valor: 0 },
+    { cod: '00.000.014.004', nome: 'CENTRO DE MEDIÇÕES - ESTRUTURA', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.015.003', nome: 'LIXAMENTO DE PAREDE E TETO', unidade: 'APT', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.016.003', nome: 'CAVALETE E TESTE HIDRÁULICO', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.017.002', nome: 'ESTRUTURA METÁLICA DE COBERTA', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.018.003', nome: 'TELHAMENTO DA COBERTA',   unidade: 'BLOCO',   valor: 0 },
     { cod: '00.000.019.003', nome: 'CUMEEIRA COBERTA',        unidade: 'BLOCO',   valor: 0 },
-    { cod: '00.000.020.003', nome: 'LIXAMENTO E IMPERMEABILIZAÇÃO DE VÃOS', unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.021.003', nome: 'REGULARIZAÇÃO DE PAREDES', unidade: 'BLOCO', valor: 0 },
+    { cod: '00.000.020.003', nome: 'LIXAMENTO E IMPERMEABILIZAÇÃO DE VÃOS', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
+    { cod: '00.000.021.003', nome: 'REGULARIZAÇÃO DE PAREDES', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.022.003', nome: 'BASE DO SHAFT',           unidade: 'APT',  valor: 0 },
     { cod: '00.000.023.002', nome: 'EMULSÃO ACÚSTICA',        unidade: 'APT',  valor: 0 },
     { cod: '00.000.024.005', nome: 'CAIXAS DOS BLOCOS',       unidade: 'BLOCO', valor: 0 },
-    { cod: '00.000.025.003', nome: 'IMPERMEABILIZAÇÃO DE PISO E PAREDE', unidade: 'APT', valor: 0 },
+    { cod: '00.000.025.003', nome: 'IMPERMEABILIZAÇÃO DE PISO E PAREDE', unidade: 'APT', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.026.002', nome: 'TESTE DE ESTANQUEIDADE',  unidade: 'APT',  valor: 0 },
     { cod: '00.000.027.003', nome: 'CONTRAPISO',              unidade: 'APT',  valor: 5.50 },
     { cod: '00.000.028.003', nome: 'FECHAMENTO DO SHAFT',     unidade: 'APT',  valor: 0 },
     { cod: '00.000.029.003', nome: 'TRATAMENTO DE FISSURAS',  unidade: 'APT',  valor: 0 },
     { cod: '00.000.030.003', nome: 'CERÂMICA',                unidade: 'APT',   valor: 0 },
     { cod: '00.000.031.003', nome: 'REJUNTE',                 unidade: 'APT',  valor: 0 },
-    { cod: '00.000.032.003', nome: 'QUADRO DE DISTRIBUIÇÃO TELECOM E REG ESCADA', unidade: 'APT', valor: 0 },
+    { cod: '00.000.032.003', nome: 'QUADRO DE DISTRIBUIÇÃO TELECOM E REG ESCADA', unidade: 'APT', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.033.002', nome: 'FORRO E SANCA',           unidade: 'APT',  valor: 0 },
     { cod: '00.000.034.002', nome: 'ESQUADRIAS',              unidade: 'APT',  valor: 0 },
-    { cod: '00.000.035.001', nome: 'PASTA DE GESSO - PAREDES', unidade: 'APT', valor: 0 },
+    { cod: '00.000.035.001', nome: 'PASTA DE GESSO - PAREDES', unidade: 'APT', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.036.002', nome: 'TEXTURA INTERNA',         unidade: 'APT',  valor: 0 },
-    { cod: '00.000.037.002', nome: 'REGULARIZAÇÃO E TEXTURA DO TÉRREO', unidade: 'BLOCO', valor: 0 },
+    { cod: '00.000.037.002', nome: 'REGULARIZAÇÃO E TEXTURA DO TÉRREO', unidade: 'BLOCO', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.038.002', nome: 'PORTAS',                  unidade: 'APT',  valor: 0 },
     { cod: '00.000.039.003', nome: 'GÁS',                     unidade: 'APT',  valor: 0 },
     { cod: '00.000.040.003', nome: 'LOUÇAS E METAIS',         unidade: 'PAV',  valor: 0 },
     { cod: '00.000.041.003', nome: 'INSTALAÇÕES ELÉTRICAS',   unidade: 'APT',  valor: 0 },
     { cod: '00.000.042.003', nome: 'CORRIMÃO',                unidade: 'PAV',   valor: 0 },
-    { cod: '00.000.043.002', nome: 'PINTURA DE ALIZAR E ESCADA', unidade: 'APT', valor: 0 },
+    { cod: '00.000.043.002', nome: 'PINTURA DE ALIZAR E ESCADA', unidade: 'APT', valorProfissional: 0, valorAjudante: 0 },
     { cod: '00.000.044.003', nome: 'COMBATE AO INCÊNDIO',     unidade: 'BLOCO',   valor: 0 },
     { cod: '00.000.045.003', nome: 'LIMPEZA DE OBRA',         unidade: 'UN',   valor: 0 },
     { cod: '00.000.047.003', nome: 'CHECK-LIST',              unidade: 'APT',  valor: 0 },
@@ -1370,7 +1359,7 @@ function goTab(id) {
     return;
   }
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const ids = ['config','equipes','lancamento','resumo','historico','logs','admin'];
+    const ids = ['config','equipes','lancamento','resumo','historico','admin'];
     t.classList.toggle('active', ids[i] === id);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1379,7 +1368,6 @@ function goTab(id) {
   if (id === 'lancamento') renderLancamento();
   if (id === 'resumo')    renderResumo();
   if (id === 'historico') renderHistorico();
-  if (id === 'logs') renderLogs();
   if (id === 'admin')     renderAdmin();
   if (id === 'config')    renderConfig();
 }
@@ -1439,7 +1427,7 @@ function renderConfig() {
     tr.innerHTML = `<td><span class="pill pill-cinza">${sv.cod}</span></td>
       <td>${sv.nome}</td>
       <td><span class="pill pill-amarelo">${sv.unidade}</span></td>
-      <td style="color:var(--azul-claro);font-weight:600">R$ ${sv.valor.toFixed(2)}</td>`;
+      <td style="color:var(--azul-claro);font-weight:600">Prof: R$ ${(sv.valorProfissional||sv.valor||0).toFixed(2)} / Ajud: R$ ${(sv.valorAjudante||0).toFixed(2)}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1573,7 +1561,7 @@ function renderEquipesCriadas() {
           <div class="servico-meta">
             <span>Supervisor: <strong style="color:var(--branco)">${eq.supervisor}</strong></span>
             <span>${eq.colaboradores.length} colaboradores</span>
-            <span class="servico-preco">${sv.unidade || ''} · R$ ${(sv.valor||0).toFixed(2)}/un</span>
+            <span class="servico-preco">${sv.unidade || ''} · Prof: R$ ${(sv.valorProfissional||sv.valor||0).toFixed(2)} / Ajud: R$ ${(sv.valorAjudante||0).toFixed(2)}</span>
           </div>
         </div>
         <button class="btn btn-danger btn-sm" onclick="removerEquipe('${eq.id}')">✕ Remover</button>
@@ -1596,6 +1584,21 @@ function removerEquipe(id) {
 // ESTRUTURA DA OBRA
 // ═══════════════════════════════════════════════════
 const OBRA_BLOCOS = 15;
+
+// Classificação de função
+const FUNCOES_AJUDANTE = ['SERVENTE', 'AJUDANTE'];
+function isAjudante(funcao) {
+  if (!funcao) return false;
+  const f = funcao.toUpperCase();
+  return FUNCOES_AJUDANTE.some(aj => f.includes(aj));
+}
+
+// Plural de unidade
+function pluralUnidade(qtd, unidade) {
+  if (qtd <= 1) return unidade;
+  const map = { 'BLOCO': 'BLOCOS', 'APT': 'APTS', 'PAV': 'PAVS', 'UN': 'UNS', 'M²': 'M²' };
+  return map[unidade] || unidade + 'S';
+}
 const PAVIMENTOS = ['TÉRREO', 'PAV 1', 'PAV 2', 'PAV 3'];
 const PAV_PREFIX = ['', '1', '2', '3']; // prefixo do apt por pav
 
@@ -1678,11 +1681,11 @@ function renderLancamento() {
           <div class="servico-nome">${sv.nome || eq.servicoCod}</div>
           <div class="servico-meta">
             <span>Supervisor: <strong style="color:var(--branco)">${eq.supervisor}</strong></span>
-            <span class="servico-preco">${sv.unidade || ''} · R$ ${(sv.valor||0).toFixed(2)}/un</span>
+            <span class="servico-preco">${sv.unidade || ''} · Prof: R$ ${(sv.valorProfissional||sv.valor||0).toFixed(2)} / Ajud: R$ ${(sv.valorAjudante||0).toFixed(2)}</span>
           </div>
         </div>
         <div id="qtd-badge-${eq.id}" style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--azul-claro);">
-          ${(lanc.unidades||[]).length} ${unid}
+          ${(lanc.unidades||[]).length} ${pluralUnidade((lanc.unidades||[]).length, unid)}
         </div>
       </div>
       <div style="padding:12px 18px 16px;">
@@ -1826,7 +1829,7 @@ function toggleUnidade(equipeId, servicoCod, key, tipo) {
   const sv = DB.servicos.find(s => DB.equipes.find(e => e.id === equipeId)?.servicoCod === s.cod) || {};
   const unid = (sv.unidade || tipo).toUpperCase();
   const badge = document.getElementById(`qtd-badge-${equipeId}`);
-  if (badge) badge.textContent = `${unids.length} ${unid}`;
+  if (badge) badge.textContent = `${unids.length} ${pluralUnidade(unids.length, unid)}`;
   // Re-render só o grid
   const gridDiv = document.getElementById(`grid-${equipeId}`);
   if (gridDiv) gridDiv.innerHTML = buildGridHTML(equipeId, servicoCod, unid);
@@ -1947,14 +1950,25 @@ function formatUnidadeLabel(key) {
 // ═══════════════════════════════════════════════════
 // RESUMO
 // ═══════════════════════════════════════════════════
-function calcularPremiacao(equipe) {
+function calcularPremiacao(equipe, codColab) {
   const sv = DB.servicos.find(s => s.cod === equipe.servicoCod) || {};
   const lanc = DB.lancamentos[equipe.id] || { qtd: 0, unidades: [], faltas: {} };
   const qtd = (lanc.unidades && lanc.unidades.length > 0) ? lanc.unidades.length : (lanc.qtd || 0);
-  const totalEquipe = qtd * (sv.valor || 0);
-  const n = equipe.colaboradores.length || 1;
-  const porPessoa = n > 0 ? totalEquipe / n : 0;
-  return { totalEquipe, porPessoa, qtd, valor: sv.valor || 0, unidade: sv.unidade || '' };
+  const unidade = sv.unidade || '';
+
+  // Determinar valor pelo tipo de função do colaborador
+  let valorUnit = 0;
+  if (codColab) {
+    const c = DB.colaboradores.find(x => x.cod === codColab);
+    valorUnit = c && isAjudante(c.funcao) ? (sv.valorAjudante || 0) : (sv.valorProfissional || sv.valor || 0);
+  } else {
+    valorUnit = sv.valorProfissional || sv.valor || 0;
+  }
+
+  const premiacao = qtd * valorUnit;
+  // Para compatibilidade com código antigo
+  const totalEquipe = premiacao * (equipe.colaboradores.length || 1);
+  return { totalEquipe, porPessoa: premiacao, qtd, valor: valorUnit, unidade };
 }
 
 function renderResumo() {
@@ -1966,8 +1980,8 @@ function renderResumo() {
   DB.equipes.forEach(eq => {
     const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
     const lanc = DB.lancamentos[eq.id] || { qtd: 0, faltas: {} };
-    const calc = calcularPremiacao(eq);
     eq.colaboradores.forEach(cod => {
+      const calc = calcularPremiacao(eq, cod);
       const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
       totalPessoas.add(cod);
       rows.push({
@@ -2025,14 +2039,14 @@ function exportarExcel() {
     [`CONTROLE DE PREMIAÇÃO – ${obra.nome.toUpperCase()}`],
     [`Mês: ${DB.config.mes}   |   Etapa: ${DB.config.etapa}   |   Engenheiro: ${DB.config.engenheiro}`],
     [],
-    ['CÓD. SIEN','NOME DO COLABORADOR','FUNÇÃO','SUPERVISOR','SERVIÇO','CÓDIGO DO SERVIÇO','FALTAS','QTD SERV.','UNIDADE','VALOR UNIT. (R$)','PREMIAÇÃO (R$)'],
+    ['CÓD. SIENGE','NOME DO COLABORADOR','FUNÇÃO','SUPERVISOR','SERVIÇO','CÓDIGO DO SERVIÇO','FALTAS','QTD SERV.','UNIDADE','VALOR UNIT. (R$)','PREMIAÇÃO (R$)'],
   ];
 
   DB.equipes.forEach(eq => {
     const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
     const lanc = DB.lancamentos[eq.id] || { qtd: 0, faltas: {} };
-    const calc = calcularPremiacao(eq);
     eq.colaboradores.forEach(cod => {
+      const calc = calcularPremiacao(eq, cod);
       const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
       rows.push([
         cod, c.nome, c.funcao,
@@ -2071,54 +2085,7 @@ function exportarExcel() {
 
   const nomearq = `premiacao_${obra.nome.replace(/\s/g,'_')}_${DB.config.mes}_etapa${DB.config.etapa}.xlsx`;
   XLSX.writeFile(wb, nomearq);
-  gravarLogExportacao(obra, rows);
   toast('✓ Excel exportado com sucesso!');
-}
-
-function gravarLogExportacao(obra, rows) {
-  const agora = new Date();
-  const dataHora = agora.toLocaleString('pt-BR');
-  const engenheiro = usuarioLogado ? usuarioLogado.nome : (DB.config.engenheiro || '?');
-
-  // Monta snapshot dos dados exportados
-  const itens = [];
-  DB.equipes.forEach(eq => {
-    const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
-    const calc = calcularPremiacao(eq);
-    const lanc = DB.lancamentos[eq.id] || { faltas: {} };
-    eq.colaboradores.forEach(cod => {
-      const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
-      itens.push({
-        cod, nome: c.nome, funcao: c.funcao,
-        supervisor: eq.supervisor,
-        servico: sv.nome || eq.servicoCod,
-        servicoCod: eq.servicoCod,
-        faltas: lanc.faltas[cod] || 0,
-        qtd: calc.qtd,
-        unidade: calc.unidade,
-        valorUnit: calc.valor,
-        premiacao: calc.porPessoa,
-      });
-    });
-  });
-
-  const log = {
-    dataHora,
-    timestamp: agora.getTime(),
-    engenheiro,
-    obra: obra.nome,
-    obraCod: obra.cod,
-    mes: DB.config.mes,
-    etapa: DB.config.etapa,
-    totalItens: itens.length,
-    totalPremiacao: itens.reduce((s, i) => s + i.premiacao, 0),
-    itens,
-  };
-
-  // Salvar no Firebase em /logs/{obraCod}/{timestamp}
-  rootRef.child('logs/' + obra.cod + '/' + agora.getTime()).set(log)
-    .then(() => console.log('Log salvo'))
-    .catch(e => console.error('Erro ao salvar log:', e));
 }
 
 // ═══════════════════════════════════════════════════
@@ -2142,8 +2109,10 @@ function renderAdmin() {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td style="font-size:11px">${sv.cod}</td><td style="font-size:12px">${sv.nome}</td>
       <td>${sv.unidade}</td>
-      <td><input type="number" step="0.01" value="${sv.valor}" style="width:90px"
-        onchange="atualizarValorServico(${i},this.value)"></td>
+      <td><input type="number" step="0.01" value="${sv.valorProfissional||sv.valor||0}" style="width:80px"
+        onchange="atualizarValorServico(${i},'prof',this.value)"></td>
+      <td><input type="number" step="0.01" value="${sv.valorAjudante||0}" style="width:80px"
+        onchange="atualizarValorServico(${i},'ajud',this.value)"></td>
       <td><button class="btn btn-danger btn-sm" onclick="removerServico(${i})">✕</button></td>`;
     tbody2.appendChild(tr);
   });
@@ -2199,17 +2168,19 @@ function adicionarServico() {
   const cod = document.getElementById('adm-sv-cod').value.trim();
   const nome = document.getElementById('adm-sv-nome').value.trim();
   const unidade = document.getElementById('adm-sv-unidade').value;
-  const valor = parseFloat(document.getElementById('adm-sv-valor').value) || 0;
+  const valorProf = parseFloat(document.getElementById('adm-sv-valor-prof').value) || 0;
+  const valorAjud = parseFloat(document.getElementById('adm-sv-valor-ajud').value) || 0;
   if (!cod || !nome) { toast('Preencha código e nome!','error'); return; }
-  DB.servicos.push({ cod, nome, unidade, valor });
+  DB.servicos.push({ cod, nome, unidade, valorProfissional: valorProf, valorAjudante: valorAjud });
   salvarDB(); renderAdmin(); toast('✓ Serviço adicionado!');
-  ['adm-sv-cod','adm-sv-nome','adm-sv-valor'].forEach(id => document.getElementById(id).value='');
+  ['adm-sv-cod','adm-sv-nome','adm-sv-valor-prof','adm-sv-valor-ajud'].forEach(id => document.getElementById(id).value='');
 }
 
 function removerServico(i) { DB.servicos.splice(i,1); salvarDB(); renderAdmin(); }
 
-function atualizarValorServico(i, val) {
-  DB.servicos[i].valor = parseFloat(val) || 0;
+function atualizarValorServico(i, tipo, val) {
+  if (tipo === 'prof') DB.servicos[i].valorProfissional = parseFloat(val) || 0;
+  else DB.servicos[i].valorAjudante = parseFloat(val) || 0;
   salvarDB();
 }
 
@@ -2306,82 +2277,6 @@ function removerUsuario(login) {
   rootRef.child('usuarios/' + login).remove().then(() => {
     toast('Usuário removido.'); renderTabelaUsuarios();
   });
-}
-
-// ═══════════════════════════════════════════════════
-// AUDITORIA DE EXPORTAÇÕES
-// ═══════════════════════════════════════════════════
-function renderLogs() {
-  const cont = document.getElementById('logs-container');
-  cont.innerHTML = '<div class="no-data">Carregando...</div>';
-
-  const obraCod = DB.config.obra;
-  if (!obraCod) { cont.innerHTML = '<div class="no-data">Selecione uma obra primeiro.</div>'; return; }
-
-  rootRef.child('logs/' + obraCod).orderByChild('timestamp').once('value').then(snap => {
-    const dados = snap.val();
-    if (!dados) { cont.innerHTML = '<div class="no-data">Nenhuma exportação registrada para esta obra.</div>'; return; }
-
-    // Ordenar do mais recente pro mais antigo
-    const logs = Object.values(dados).sort((a,b) => b.timestamp - a.timestamp);
-    cont.innerHTML = '';
-
-    logs.forEach((log, idx) => {
-      const div = document.createElement('div');
-      div.className = 'hist-servico-group';
-      div.style.marginBottom = '20px';
-
-      const totalFmt = (log.totalPremiacao||0).toLocaleString('pt-BR', {minimumFractionDigits:2});
-
-      let inner = `
-        <div class="hist-servico-header" style="cursor:pointer;" onclick="toggleLogDetalhe('log-det-${idx}')">
-          <div>
-            <span style="color:var(--branco);font-size:15px;">📄 Exportação ${idx === 0 ? '<span style="color:var(--verde);font-size:11px;margin-left:8px;">● MAIS RECENTE</span>' : ''}</span>
-            <div style="font-size:12px;color:var(--cinza-texto);margin-top:3px;font-weight:400;">
-              ${log.dataHora} &nbsp;·&nbsp; ${log.engenheiro} &nbsp;·&nbsp; ${log.mes||''} Etapa ${log.etapa||''}
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--azul-claro);">R$ ${totalFmt}</div>
-            <div style="font-size:11px;color:var(--cinza-texto);">${log.totalItens||0} colaboradores</div>
-          </div>
-        </div>
-        <div id="log-det-${idx}" style="display:none;border:1px solid var(--cinza-borda);border-top:none;">
-          <div class="table-wrap">
-            <table style="width:100%;font-size:12px;">
-              <thead><tr>
-                <th>Cód.</th><th>Colaborador</th><th>Supervisor</th><th>Serviço</th>
-                <th>Faltas</th><th>Qtd</th><th>Valor Unit.</th><th>Premiação</th>
-              </tr></thead>
-              <tbody>`;
-
-      (log.itens||[]).forEach(it => {
-        const prem = (it.premiacao||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-        inner += `<tr>
-          <td>${it.cod}</td>
-          <td>${it.nome}</td>
-          <td>${it.supervisor||''}</td>
-          <td style="font-size:11px">${it.servico||''}</td>
-          <td style="text-align:center">${it.faltas||0}</td>
-          <td style="text-align:center">${it.qtd||0} ${it.unidade||''}</td>
-          <td>R$ ${(it.valorUnit||0).toFixed(2)}</td>
-          <td class="premiacao-val">R$ ${prem}</td>
-        </tr>`;
-      });
-
-      inner += `</tbody></table></div></div>`;
-      div.innerHTML = inner;
-      cont.appendChild(div);
-    });
-  }).catch(e => {
-    cont.innerHTML = '<div class="no-data">Erro ao carregar logs.</div>';
-    console.error(e);
-  });
-}
-
-function toggleLogDetalhe(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function logoutAdmin() {
