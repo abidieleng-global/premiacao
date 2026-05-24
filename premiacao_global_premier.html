@@ -1189,9 +1189,16 @@ function carregarDBFirebase(obraCod, callback) {
       DB = JSON.parse(JSON.stringify(DADOS_INICIAIS));
       salvarDB();
     }
-    // Migração
+    // Migração e garantia de campos
     if (!DB.historico_pagamentos) DB.historico_pagamentos = {};
-    Object.keys(DB.lancamentos || {}).forEach(id => {
+    if (!DB.equipes) DB.equipes = [];
+    if (!DB.lancamentos) DB.lancamentos = {};
+    if (!DB.colaboradores) DB.colaboradores = DADOS_INICIAIS.colaboradores;
+    if (!DB.servicos) DB.servicos = DADOS_INICIAIS.servicos;
+    if (!DB.supervisores) DB.supervisores = DADOS_INICIAIS.supervisores;
+    if (!DB.obras) DB.obras = DADOS_INICIAIS.obras;
+    if (!DB.config) DB.config = DADOS_INICIAIS.config;
+    Object.keys(DB.lancamentos).forEach(id => {
       const l = DB.lancamentos[id];
       if (!l.unidades) l.unidades = [];
       if (!l.faltas) l.faltas = {};
@@ -1511,10 +1518,12 @@ function adicionarEquipe() {
   if (!svCod || !sup) { toast('Selecione serviço e supervisor!', 'error'); return; }
   const selecionados = [...document.querySelectorAll('.colab-check:checked')].map(c => c.dataset.cod);
   if (!selecionados.length) { toast('Selecione ao menos um colaborador!', 'error'); return; }
-  // verifica duplicata
-  const existente = DB.equipes.find(e => e.servicoCod === svCod);
-  if (existente) { toast('Já existe equipe para este serviço!', 'error'); return; }
+  // verifica duplicata (mesmo serviço + mesmo supervisor)
+  const existente = DB.equipes.find(e => e.servicoCod === svCod && e.supervisor === sup);
+  if (existente) { toast('Já existe equipe para este serviço com este supervisor!', 'error'); return; }
 
+  if (!DB.equipes) DB.equipes = [];
+  if (!DB.lancamentos) DB.lancamentos = {};
   const equipe = {
     id: Date.now().toString(),
     servicoCod: svCod,
@@ -1522,7 +1531,7 @@ function adicionarEquipe() {
     colaboradores: selecionados,
   };
   DB.equipes.push(equipe);
-  DB.lancamentos[equipe.id] = { qtd: 0, faltas: {} };
+  DB.lancamentos[equipe.id] = { qtd: 0, unidades: [], faltas: {} };
   salvarDB();
   toast('✓ Equipe adicionada!');
   // reset
