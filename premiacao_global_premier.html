@@ -659,6 +659,34 @@
   }
   .login-user-nome { color: var(--azul-claro); font-weight: 600; }
 
+  /* ─── MODAL EDIÇÃO EQUIPE ─── */
+  .modal-equipe-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-equipe-overlay.open { display: flex; }
+  .modal-equipe-box {
+    background: var(--cinza-escuro);
+    border: 1px solid var(--cinza-borda);
+    border-top: 3px solid var(--azul-claro);
+    padding: 28px;
+    width: 92%;
+    max-width: 720px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-equipe-titulo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--azul-claro);
+    margin-bottom: 20px;
+  }
+
   .no-data {
     text-align: center;
     padding: 40px;
@@ -712,8 +740,7 @@
   <div class="tab" onclick="goTab('lancamento')">③ Lançamento</div>
   <div class="tab" onclick="goTab('resumo')">④ Resumo & Export</div>
   <div class="tab" onclick="goTab('historico')">⑤ Histórico</div>
-  <div class="tab" id="tab-logs" onclick="goTab('logs')" style="display:none">⑥ Auditoria</div>
-  <div class="tab" id="tab-admin" onclick="goTab('admin')" style="display:none">⚙ Admin</div>
+  <div class="tab" onclick="goTab('admin')">⚙ Admin</div>
 </div>
 
 <div class="main">
@@ -873,18 +900,7 @@
     </div>
   </div>
 
-  <!-- ══════════════ PÁGINA 6 – AUDITORIA ══════════════ -->
-  <div class="page" id="page-logs">
-    <div class="section-title">Auditoria de Exportações</div>
-    <div class="info-box">
-      Registro completo de todas as exportações feitas. Cada vez que um engenheiro exportar o Excel, fica registrado aqui com <strong>data, hora e todos os valores</strong>.
-    </div>
-    <div id="logs-container">
-      <div class="no-data">Nenhuma exportação registrada ainda.</div>
-    </div>
-  </div>
-
-  <!-- ══════════════ PÁGINA 7 – ADMIN ══════════════ -->
+  <!-- ══════════════ PÁGINA 6 – ADMIN ══════════════ -->
   <div class="page" id="page-admin">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <div class="section-title" style="margin-bottom:0;flex:1">Administração</div>
@@ -1007,6 +1023,34 @@
     <div class="senha-btns">
       <button class="btn btn-secondary" style="flex:1" onclick="fecharSenha()">Cancelar</button>
       <button class="btn btn-primary" style="flex:1" onclick="verificarSenha()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO EQUIPE -->
+<div class="modal-equipe-overlay" id="modal-equipe-overlay" onclick="fecharModalEquipe(event)">
+  <div class="modal-equipe-box">
+    <div class="modal-equipe-titulo" id="modal-equipe-titulo">Editar Equipe</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Supervisor</label>
+        <select id="modal-eq-supervisor"></select>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--cinza-texto);">Colaboradores</label>
+      <div style="display:flex;gap:8px;margin:8px 0;">
+        <div class="search-wrap" style="flex:1;">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="modal-eq-search" placeholder="Buscar colaborador..." oninput="filtrarModalColab()">
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="toggleTodosModal()">Marcar/Desmarcar Todos</button>
+      </div>
+      <div class="equipe-lista" id="modal-lista-colaboradores"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="fecharModalEquipeBtn()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoEquipe()">✓ Salvar</button>
     </div>
   </div>
 </div>
@@ -1257,8 +1301,6 @@ function fazerLogin() {
     document.getElementById('login-screen').classList.remove('ativo');
     document.getElementById('header-user-info').style.display = 'flex';
     document.getElementById('header-user-nome').textContent = '👑 Admin';
-    document.getElementById('tab-logs').style.display = '';
-    document.getElementById('tab-admin').style.display = '';
     mostrarSeletorObra(usuarioLogado.obras);
     return;
   }
@@ -1348,9 +1390,6 @@ function fazerLogout() {
   document.getElementById('header-user-info').style.display = 'none';
   document.getElementById('header-mes').textContent = '—';
   document.getElementById('header-obra').textContent = '—';
-  const tl = document.getElementById('tab-logs'); if(tl) tl.style.display='none';
-  const ta = document.getElementById('tab-admin'); if(ta) ta.style.display='none';
-  goTab('config');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1376,7 +1415,7 @@ function goTab(id) {
     return;
   }
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const ids = ['config','equipes','lancamento','resumo','historico','logs','admin'];
+    const ids = ['config','equipes','lancamento','resumo','historico','admin'];
     t.classList.toggle('active', ids[i] === id);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1385,7 +1424,6 @@ function goTab(id) {
   if (id === 'lancamento') renderLancamento();
   if (id === 'resumo')    renderResumo();
   if (id === 'historico') renderHistorico();
-  if (id === 'logs') renderLogs();
   if (id === 'admin')     renderAdmin();
   if (id === 'config')    renderConfig();
 }
@@ -1433,7 +1471,11 @@ function renderConfig() {
   });
   // restaurar
   const c = DB.config;
-  document.getElementById('cfg-mes').value = c.mes || '';
+  // Bloquear meses anteriores ao atual
+  const hoje = new Date();
+  const mesMin = hoje.toISOString().slice(0,7);
+  document.getElementById('cfg-mes').min = mesMin;
+  document.getElementById('cfg-mes').value = c.mes || mesMin;
   document.getElementById('cfg-engenheiro').value = c.engenheiro || '';
   document.getElementById('cfg-etapa').value = c.etapa || 1;
   sel.value = c.obra || '';
@@ -1582,11 +1624,108 @@ function renderEquipesCriadas() {
             <span class="servico-preco">${sv.unidade || ''} · Prof: R$ ${(sv.valorProfissional||sv.valor||0).toFixed(2)} / Ajud: R$ ${(sv.valorAjudante||0).toFixed(2)}</span>
           </div>
         </div>
-        <button class="btn btn-danger btn-sm" onclick="removerEquipe('${eq.id}')">✕ Remover</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="abrirModalEquipe('${eq.id}')">✎ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="removerEquipe('${eq.id}')">✕ Remover</button>
+        </div>
       </div>
       <div style="padding:10px 18px;font-size:12px;color:var(--cinza-texto)">${nomes}</div>`;
     cont.appendChild(div);
   });
+}
+
+// ═══════════════════════════════════════════════════
+// EDIÇÃO DE EQUIPE
+// ═══════════════════════════════════════════════════
+let equipeEditandoId = null;
+
+function abrirModalEquipe(equipeId) {
+  equipeEditandoId = equipeId;
+  const eq = DB.equipes.find(e => e.id === equipeId);
+  if (!eq) return;
+  const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
+
+  document.getElementById('modal-equipe-titulo').textContent = `Editar Equipe — ${sv.nome || eq.servicoCod}`;
+
+  // Preencher supervisores
+  const selSup = document.getElementById('modal-eq-supervisor');
+  selSup.innerHTML = '';
+  DB.supervisores.forEach(s => {
+    const op = document.createElement('option');
+    op.value = s; op.textContent = s;
+    if (s === eq.supervisor) op.selected = true;
+    selSup.appendChild(op);
+  });
+
+  // Limpar busca
+  document.getElementById('modal-eq-search').value = '';
+
+  // Preencher colaboradores com os já selecionados marcados
+  renderModalColaboradores(eq.colaboradores);
+
+  document.getElementById('modal-equipe-overlay').classList.add('open');
+}
+
+function renderModalColaboradores(selecionados = [], filtro = '') {
+  const lista = document.getElementById('modal-lista-colaboradores');
+  lista.innerHTML = '';
+  const f = filtro.toLowerCase();
+  DB.colaboradores
+    .filter(c => !f || c.nome.toLowerCase().includes(f) || c.cod.includes(f) || c.funcao.toLowerCase().includes(f))
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+    .forEach(c => {
+      const checked = selecionados.includes(c.cod);
+      const div = document.createElement('div');
+      div.className = 'equipe-item';
+      div.innerHTML = `
+        <input type="checkbox" class="modal-colab-check" data-cod="${c.cod}" ${checked ? 'checked' : ''}>
+        <span class="equipe-cod">${c.cod}</span>
+        <span class="equipe-nome">${c.nome}</span>
+        <span class="equipe-func">${c.funcao}</span>`;
+      lista.appendChild(div);
+    });
+}
+
+function filtrarModalColab() {
+  const eq = DB.equipes.find(e => e.id === equipeEditandoId);
+  const selecionados = [...document.querySelectorAll('.modal-colab-check:checked')].map(c => c.dataset.cod);
+  renderModalColaboradores(selecionados, document.getElementById('modal-eq-search').value);
+}
+
+let todosModalCheck = false;
+function toggleTodosModal() {
+  todosModalCheck = !todosModalCheck;
+  document.querySelectorAll('.modal-colab-check').forEach(c => c.checked = todosModalCheck);
+}
+
+function salvarEdicaoEquipe() {
+  const eq = DB.equipes.find(e => e.id === equipeEditandoId);
+  if (!eq) return;
+  const novoSup = document.getElementById('modal-eq-supervisor').value;
+  const novosCols = [...document.querySelectorAll('.modal-colab-check:checked')].map(c => c.dataset.cod);
+  if (!novosCols.length) { toast('Selecione ao menos um colaborador!', 'error'); return; }
+  eq.supervisor = novoSup;
+  eq.colaboradores = novosCols;
+  // Limpar faltas de colaboradores removidos
+  const lanc = DB.lancamentos[eq.id];
+  if (lanc && lanc.faltas) {
+    Object.keys(lanc.faltas).forEach(cod => {
+      if (!novosCols.includes(cod)) delete lanc.faltas[cod];
+    });
+  }
+  salvarDB();
+  fecharModalEquipeBtn();
+  renderEquipesCriadas();
+  toast('✓ Equipe atualizada!');
+}
+
+function fecharModalEquipeBtn() {
+  document.getElementById('modal-equipe-overlay').classList.remove('open');
+  equipeEditandoId = null;
+}
+
+function fecharModalEquipe(e) {
+  if (e.target === document.getElementById('modal-equipe-overlay')) fecharModalEquipeBtn();
 }
 
 function removerEquipe(id) {
@@ -2037,7 +2176,7 @@ function renderResumo() {
       <td>${r.supervisor}</td>
       <td style="font-size:12px;max-width:200px">${r.servico}</td>
       <td style="text-align:center">${r.faltas}</td>
-      <td style="text-align:center">${r.qtd} ${pluralUnidade(r.qtd, r.unidade)}</td>
+      <td style="text-align:center">${r.qtd} ${r.unidade}</td>
       <td>R$ ${r.valorUnit.toFixed(2)}</td>
       <td class="premiacao-val">R$ ${r.premiacao.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
     tbody.appendChild(tr);
@@ -2103,44 +2242,7 @@ function exportarExcel() {
 
   const nomearq = `premiacao_${obra.nome.replace(/\s/g,'_')}_${DB.config.mes}_etapa${DB.config.etapa}.xlsx`;
   XLSX.writeFile(wb, nomearq);
-  gravarLogExportacao(obra);
   toast('✓ Excel exportado com sucesso!');
-}
-
-function gravarLogExportacao(obra) {
-  const agora = new Date();
-  const dataHora = agora.toLocaleString('pt-BR');
-  const engenheiro = usuarioLogado ? usuarioLogado.nome : (DB.config.engenheiro || '?');
-  const itens = [];
-  DB.equipes.forEach(eq => {
-    const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
-    const lanc = DB.lancamentos[eq.id] || { faltas: {} };
-    eq.colaboradores.forEach(cod => {
-      const calcInd = calcularPremiacao(eq, cod);
-      const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
-      itens.push({
-        cod, nome: c.nome, funcao: c.funcao,
-        supervisor: eq.supervisor,
-        servico: sv.nome || eq.servicoCod,
-        servicoCod: eq.servicoCod,
-        faltas: lanc.faltas[cod] || 0,
-        qtd: calcInd.qtd,
-        unidade: calcInd.unidade,
-        valorUnit: calcInd.valor,
-        premiacao: calcInd.porPessoa,
-      });
-    });
-  });
-  const log = {
-    dataHora, timestamp: agora.getTime(),
-    engenheiro, obra: obra.nome, obraCod: obra.cod,
-    mes: DB.config.mes, etapa: DB.config.etapa,
-    totalItens: itens.length,
-    totalPremiacao: itens.reduce((s,i) => s + i.premiacao, 0),
-    itens,
-  };
-  rootRef.child('logs/' + obra.cod + '/' + agora.getTime()).set(log)
-    .catch(e => console.error('Erro ao salvar log:', e));
 }
 
 // ═══════════════════════════════════════════════════
@@ -2332,56 +2434,6 @@ function removerUsuario(login) {
   rootRef.child('usuarios/' + login).remove().then(() => {
     toast('Usuário removido.'); renderTabelaUsuarios();
   });
-}
-
-function renderLogs() {
-  const cont = document.getElementById('logs-container');
-  cont.innerHTML = '<div class="no-data">Carregando...</div>';
-  const obraCod = DB.config.obra;
-  if (!obraCod) { cont.innerHTML = '<div class="no-data">Selecione uma obra primeiro.</div>'; return; }
-  rootRef.child('logs/' + obraCod).once('value').then(snap => {
-    const dados = snap.val();
-    if (!dados) { cont.innerHTML = '<div class="no-data">Nenhuma exportação registrada para esta obra.</div>'; return; }
-    const logs = Object.values(dados).sort((a,b) => b.timestamp - a.timestamp);
-    cont.innerHTML = '';
-    logs.forEach((log, idx) => {
-      const div = document.createElement('div');
-      div.className = 'hist-servico-group';
-      div.style.marginBottom = '20px';
-      const totalFmt = (log.totalPremiacao||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-      let inner = `<div class="hist-servico-header" style="cursor:pointer;" onclick="toggleLogDetalhe('log-det-${idx}')">
-          <div>
-            <span style="color:var(--branco);font-size:15px;">📄 Exportação ${idx===0?'<span style="color:var(--verde);font-size:11px;margin-left:8px;">● MAIS RECENTE</span>':''}</span>
-            <div style="font-size:12px;color:var(--cinza-texto);margin-top:3px;font-weight:400;">${log.dataHora} &nbsp;·&nbsp; ${log.engenheiro} &nbsp;·&nbsp; ${log.mes||''} Etapa ${log.etapa||''}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--azul-claro);">R$ ${totalFmt}</div>
-            <div style="font-size:11px;color:var(--cinza-texto);">${log.totalItens||0} colaboradores</div>
-          </div>
-        </div>
-        <div id="log-det-${idx}" style="display:none;border:1px solid var(--cinza-borda);border-top:none;">
-          <div class="table-wrap"><table style="width:100%;font-size:12px;">
-            <thead><tr><th>Cód.</th><th>Colaborador</th><th>Supervisor</th><th>Serviço</th><th>Faltas</th><th>Qtd</th><th>Valor Unit.</th><th>Premiação</th></tr></thead>
-            <tbody>`;
-      (log.itens||[]).forEach(it => {
-        const prem = (it.premiacao||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-        inner += `<tr><td>${it.cod}</td><td>${it.nome}</td><td>${it.supervisor||''}</td>
-          <td style="font-size:11px">${it.servico||''}</td>
-          <td style="text-align:center">${it.faltas||0}</td>
-          <td style="text-align:center">${it.qtd||0} ${pluralUnidade(it.qtd||0, it.unidade||'')}</td>
-          <td>R$ ${(it.valorUnit||0).toFixed(2)}</td>
-          <td class="premiacao-val">R$ ${prem}</td></tr>`;
-      });
-      inner += '</tbody></table></div></div>';
-      div.innerHTML = inner;
-      cont.appendChild(div);
-    });
-  }).catch(e => { cont.innerHTML = '<div class="no-data">Erro ao carregar.</div>'; });
-}
-
-function toggleLogDetalhe(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function logoutAdmin() {
