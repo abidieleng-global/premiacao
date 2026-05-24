@@ -1230,6 +1230,17 @@ function fazerLogin() {
     return;
   }
 
+  // Verificar se é login de admin
+  if (usuario === 'admin' && senha === ADMIN_SENHA) {
+    usuarioLogado = { usuario: 'admin', nome: 'Administrador', obras: DADOS_INICIAIS.obras.map(o => o.cod), isAdmin: true };
+    adminAutenticado = true;
+    document.getElementById('login-screen').classList.remove('ativo');
+    document.getElementById('header-user-info').style.display = 'flex';
+    document.getElementById('header-user-nome').textContent = '👑 Admin';
+    mostrarSeletorObra(usuarioLogado.obras);
+    return;
+  }
+
   carregarUsuarios(usuarios => {
     const user = usuarios[usuario];
     if (!user || user.senha !== senha) {
@@ -1237,7 +1248,7 @@ function fazerLogin() {
       document.getElementById('login-senha-input').value = '';
       return;
     }
-    usuarioLogado = { usuario, nome: user.nome, obras: user.obras || [] };
+    usuarioLogado = { usuario, nome: user.nome, obras: user.obras || [], isAdmin: false };
     document.getElementById('login-screen').classList.remove('ativo');
     document.getElementById('header-user-info').style.display = 'flex';
     document.getElementById('header-user-nome').textContent = user.nome;
@@ -1246,7 +1257,6 @@ function fazerLogin() {
     if (usuarioLogado.obras.length === 1) {
       iniciarComObra(usuarioLogado.obras[0]);
     } else if (usuarioLogado.obras.length > 1) {
-      // Mostra seletor de obra
       mostrarSeletorObra(usuarioLogado.obras);
     } else {
       document.getElementById('login-erro').textContent = 'Nenhuma obra liberada para este usuário.';
