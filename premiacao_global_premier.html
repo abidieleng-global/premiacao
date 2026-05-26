@@ -398,6 +398,35 @@
 
   .falta-input { width: 60px !important; text-align: center; }
 
+  /* ─── DESCONTO DE FALTA ─── */
+  .falta-wrap { display: flex; align-items: center; gap: 8px; }
+  .btn-desconto {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 4px 10px; cursor: pointer; border: none;
+    transition: all 0.2s; border-radius: 2px;
+  }
+  .btn-desconto.sim {
+    background: rgba(198,40,40,0.2);
+    color: var(--vermelho);
+    border: 1px solid var(--vermelho);
+  }
+  .btn-desconto.sim:hover { background: var(--vermelho); color: #fff; }
+  .btn-desconto.nao {
+    background: rgba(74,144,217,0.12);
+    color: var(--cinza-texto);
+    border: 1px solid var(--cinza-borda);
+  }
+  .btn-desconto.nao:hover { border-color: var(--azul-claro); color: var(--azul-claro); }
+  .desconto-info {
+    font-size: 10px; color: var(--cinza-texto);
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .desconto-info.ativo { color: var(--vermelho); font-weight: 700; }
+
 
   /* ─── GRID SELETOR DE UNIDADES ─── */
   .grid-unidades { margin: 14px 0 10px; }
@@ -873,7 +902,8 @@
               <th>Supervisor</th>
               <th>Serviço</th>
               <th>Faltas</th>
-              <th>Qtd Serviço</th>
+              <th>Desconto</th>
+              <th>Qtd Líquido</th>
               <th>Valor Unit.</th>
               <th>Premiação</th>
             </tr>
@@ -1259,6 +1289,7 @@ function carregarDBFirebase(obraCod, callback) {
       const l = DB.lancamentos[id];
       if (!l.unidades) l.unidades = [];
       if (!l.faltas) l.faltas = {};
+      if (!l.descontarFalta) l.descontarFalta = {};
     });
     appPronto = true;
     callback();
@@ -1820,12 +1851,32 @@ function renderLancamento() {
     eq.colaboradores.forEach(cod => {
       const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
       const faltas = lanc.faltas[cod] || 0;
+      const desconta = lanc.descontarFalta && lanc.descontarFalta[cod] === true;
+      // Calcular desconto equivalente para exibir
+      const unidStr = (sv.unidade || 'UN').toUpperCase();
+      let descInfo = '';
+      if (faltas > 0) {
+        if (unidStr === 'APT') descInfo = `−${faltas * 4} APT`;
+        else if (unidStr === 'PAV') descInfo = `−${faltas} PAV`;
+        else if (unidStr === 'BLOCO') descInfo = `−${(faltas * 0.25).toFixed(2)} BL`;
+        else descInfo = '—';
+      }
       linhasColab += `<tr>
         <td>${cod}</td>
         <td>${c.nome}</td>
         <td>${c.funcao}</td>
         <td><input type="number" class="falta-input" min="0" max="31" value="${faltas}"
           onchange="salvarFalta('${eq.id}','${cod}',this.value)"></td>
+        <td>
+          ${faltas > 0 ? `
+          <div class="falta-wrap">
+            <button class="btn-desconto ${desconta ? 'sim' : 'nao'}"
+              onclick="toggleDesconto('${eq.id}','${cod}',${!desconta})">
+              ${desconta ? '✕ Sim' : '— Não'}
+            </button>
+            <span class="desconto-info ${desconta ? 'ativo' : ''}">${descInfo}</span>
+          </div>` : '<span style="color:var(--cinza-borda);font-size:12px;">—</span>'}
+        </td>
       </tr>`;
     });
 
@@ -1851,7 +1902,7 @@ function renderLancamento() {
         </div>
         <table style="width:100%;margin-top:14px;">
           <thead><tr>
-            <th>Cód.</th><th>Colaborador</th><th>Função</th><th>Faltas</th>
+            <th>Cód.</th><th>Colaborador</th><th>Função</th><th>Faltas</th><th>Descontar?</th>
           </tr></thead>
           <tbody>${linhasColab}</tbody>
         </table>
@@ -1996,9 +2047,25 @@ function toggleUnidade(equipeId, servicoCod, key, tipo) {
 }
 
 function salvarFalta(equipeId, codColab, val) {
-  if (!DB.lancamentos[equipeId]) DB.lancamentos[equipeId] = { qtd: 0, unidades: [], faltas: {} };
-  DB.lancamentos[equipeId].faltas[codColab] = parseInt(val) || 0;
+  if (!DB.lancamentos[equipeId]) DB.lancamentos[equipeId] = { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
+  if (!DB.lancamentos[equipeId].descontarFalta) DB.lancamentos[equipeId].descontarFalta = {};
+  const novaFalta = parseInt(val) || 0;
+  DB.lancamentos[equipeId].faltas[codColab] = novaFalta;
+  // Se zerou a falta, remove o desconto também
+  if (novaFalta === 0) {
+    delete DB.lancamentos[equipeId].descontarFalta[codColab];
+  }
   salvarDB();
+  // Re-renderiza o lançamento para atualizar o botão de desconto
+  renderLancamento();
+}
+
+function toggleDesconto(equipeId, codColab, descontar) {
+  if (!DB.lancamentos[equipeId]) return;
+  if (!DB.lancamentos[equipeId].descontarFalta) DB.lancamentos[equipeId].descontarFalta = {};
+  DB.lancamentos[equipeId].descontarFalta[codColab] = descontar;
+  salvarDB();
+  renderLancamento();
 }
 
 function salvarQtd(equipeId, val) {
@@ -2109,9 +2176,22 @@ function formatUnidadeLabel(key) {
 // ═══════════════════════════════════════════════════
 function calcularPremiacao(equipe, codColab) {
   const sv = DB.servicos.find(s => s.cod === equipe.servicoCod) || {};
-  const lanc = DB.lancamentos[equipe.id] || { qtd: 0, unidades: [], faltas: {} };
-  const qtd = (lanc.unidades && lanc.unidades.length > 0) ? lanc.unidades.length : (lanc.qtd || 0);
-  const unidade = sv.unidade || '';
+  const lanc = DB.lancamentos[equipe.id] || { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
+  const qtdBruta = (lanc.unidades && lanc.unidades.length > 0) ? lanc.unidades.length : (lanc.qtd || 0);
+  const unidade = (sv.unidade || '').toUpperCase();
+
+  // Calcular desconto de faltas para este colaborador
+  let desconto = 0;
+  if (codColab && lanc.descontarFalta && lanc.descontarFalta[codColab] === true) {
+    const faltas = lanc.faltas[codColab] || 0;
+    if (faltas > 0) {
+      if (unidade === 'APT')   desconto = faltas * 4;
+      else if (unidade === 'PAV')  desconto = faltas * 1;
+      else if (unidade === 'BLOCO') desconto = faltas * 0.25;
+      // Para UN e M² não há regra definida — não desconta
+    }
+  }
+  const qtd = Math.max(0, qtdBruta - desconto);
 
   // Determinar valor pelo tipo de função do colaborador
   let valorUnit = 0;
@@ -2123,9 +2203,8 @@ function calcularPremiacao(equipe, codColab) {
   }
 
   const premiacao = qtd * valorUnit;
-  // Para compatibilidade com código antigo
   const totalEquipe = premiacao * (equipe.colaboradores.length || 1);
-  return { totalEquipe, porPessoa: premiacao, qtd, valor: valorUnit, unidade };
+  return { totalEquipe, porPessoa: premiacao, qtd, qtdBruta, desconto, valor: valorUnit, unidade };
 }
 
 function renderResumo() {
@@ -2136,16 +2215,21 @@ function renderResumo() {
   const rows = [];
   DB.equipes.forEach(eq => {
     const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
-    const lanc = DB.lancamentos[eq.id] || { qtd: 0, faltas: {} };
+    const lanc = DB.lancamentos[eq.id] || { qtd: 0, faltas: {}, descontarFalta: {} };
     eq.colaboradores.forEach(cod => {
       const calc = calcularPremiacao(eq, cod);
       const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
+      const faltas = lanc.faltas[cod] || 0;
+      const desconta = lanc.descontarFalta && lanc.descontarFalta[cod] === true;
       totalPessoas.add(cod);
       rows.push({
         cod, nome: c.nome, funcao: c.funcao,
         supervisor: eq.supervisor,
         servico: sv.nome || eq.servicoCod,
-        faltas: lanc.faltas[cod] || 0,
+        faltas,
+        desconta,
+        desconto: calc.desconto,
+        qtdBruta: calc.qtdBruta,
         qtd: calc.qtd,
         valorUnit: calc.valor,
         unidade: calc.unidade,
@@ -2169,13 +2253,19 @@ function renderResumo() {
   tbody.innerHTML = '';
   rows.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(r => {
     const tr = document.createElement('tr');
+    const descontoCell = r.faltas > 0
+      ? (r.desconta
+          ? `<span style="color:var(--vermelho);font-weight:700;font-size:12px;">−${r.desconto} ${r.unidade}</span>`
+          : `<span style="color:var(--cinza-texto);font-size:12px;">Não descontado</span>`)
+      : '—';
     tr.innerHTML = `
       <td>${r.cod}</td>
       <td>${r.nome}</td>
       <td>${r.funcao}</td>
       <td>${r.supervisor}</td>
-      <td style="font-size:12px;max-width:200px">${r.servico}</td>
-      <td style="text-align:center">${r.faltas}</td>
+      <td style="font-size:12px;max-width:180px">${r.servico}</td>
+      <td style="text-align:center">${r.faltas || '—'}</td>
+      <td style="text-align:center;font-size:12px">${descontoCell}</td>
       <td style="text-align:center">${r.qtd} ${r.unidade}</td>
       <td>R$ ${r.valorUnit.toFixed(2)}</td>
       <td class="premiacao-val">R$ ${r.premiacao.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
@@ -2196,21 +2286,25 @@ function exportarExcel() {
     [`CONTROLE DE PREMIAÇÃO – ${obra.nome.toUpperCase()}`],
     [`Mês: ${DB.config.mes}   |   Etapa: ${DB.config.etapa}   |   Engenheiro: ${DB.config.engenheiro}`],
     [],
-    ['CÓD. SIENGE','NOME DO COLABORADOR','FUNÇÃO','SUPERVISOR','SERVIÇO','CÓDIGO DO SERVIÇO','FALTAS','QTD SERV.','UNIDADE','VALOR UNIT. (R$)','PREMIAÇÃO (R$)'],
+    ['CÓD. SIENGE','NOME DO COLABORADOR','FUNÇÃO','SUPERVISOR','SERVIÇO','CÓDIGO DO SERVIÇO','FALTAS','DESC. FALTA','QTD BRUTA','QTD LÍQUIDA','UNIDADE','VALOR UNIT. (R$)','PREMIAÇÃO (R$)'],
   ];
 
   DB.equipes.forEach(eq => {
     const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
-    const lanc = DB.lancamentos[eq.id] || { qtd: 0, faltas: {} };
+    const lanc = DB.lancamentos[eq.id] || { qtd: 0, faltas: {}, descontarFalta: {} };
     eq.colaboradores.forEach(cod => {
       const calc = calcularPremiacao(eq, cod);
       const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
+      const faltas = lanc.faltas[cod] || 0;
+      const desconta = lanc.descontarFalta && lanc.descontarFalta[cod] === true;
       rows.push([
         cod, c.nome, c.funcao,
         eq.supervisor,
         sv.nome || eq.servicoCod,
         eq.servicoCod,
-        lanc.faltas[cod] || 0,
+        faltas,
+        desconta ? `−${calc.desconto} ${calc.unidade}` : 'Não descontado',
+        calc.qtdBruta,
         calc.qtd,
         calc.unidade,
         calc.valor,
@@ -2220,7 +2314,7 @@ function exportarExcel() {
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [14,40,20,15,50,18,8,10,10,14,14].map(w => ({wch:w}));
+  ws['!cols'] = [14,40,20,15,50,18,8,16,10,10,10,14,14].map(w => ({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws, 'Premiação');
 
   // ─── ABA RESUMO POR SERVIÇO ───
@@ -2232,7 +2326,7 @@ function exportarExcel() {
     const calc = calcularPremiacao(eq);
     rows2.push([
       sv.nome||eq.servicoCod, eq.servicoCod, eq.supervisor,
-      calc.qtd, calc.unidade, calc.valor,
+      calc.qtdBruta, calc.unidade, calc.valor,
       calc.totalEquipe, eq.colaboradores.length, calc.porPessoa,
     ]);
   });
