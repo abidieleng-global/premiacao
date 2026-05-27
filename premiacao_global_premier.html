@@ -473,6 +473,33 @@
     text-align: center;
     line-height: 1.2;
   }
+  /* Usado por outra equipe do mesmo serviço */
+  .bloco-card.outra-equipe {
+    background: rgba(198,40,40,0.08);
+    border-color: rgba(198,40,40,0.4);
+    color: rgba(198,40,40,0.5);
+    cursor: not-allowed;
+  }
+  .bloco-card.outra-equipe .bloco-pago-label {
+    font-family: 'Barlow', sans-serif;
+    font-size: 9px; font-weight: 400;
+    color: rgba(198,40,40,0.6);
+    margin-top: 2px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .pav-card.outra-equipe {
+    background: rgba(198,40,40,0.08);
+    border-color: rgba(198,40,40,0.4);
+    color: rgba(198,40,40,0.5);
+    cursor: not-allowed;
+  }
+  .apt-card.outra-equipe {
+    background: rgba(198,40,40,0.08);
+    border-color: rgba(198,40,40,0.4);
+    color: rgba(198,40,40,0.5);
+    cursor: not-allowed;
+  }
   .bloco-card .bloco-nome { font-size: 13px; font-weight: 700; }
   .bloco-card.parcial { border-color: #F59E0B; }
   .bloco-card.parcial .bloco-nome { color: #F59E0B; }
@@ -2019,21 +2046,39 @@ function renderLancamento() {
   });
 }
 
+// Retorna Set de unidades já usadas por outras equipes do mesmo serviço
+function getUnidadesOutrasEquipes(equipeId, servicoCod) {
+  const usado = new Set();
+  DB.equipes.forEach(eq => {
+    if (eq.id === equipeId) return; // pula a própria equipe
+    if (eq.servicoCod !== servicoCod) return; // pula serviços diferentes
+    const lanc = DB.lancamentos[eq.id];
+    if (lanc && lanc.unidades) lanc.unidades.forEach(u => usado.add(u));
+  });
+  return usado;
+}
+
 function buildGridHTML(equipeId, servicoCod, unidade) {
   const lanc = DB.lancamentos[equipeId] || { unidades: [] };
   const sels = new Set(lanc.unidades || []);
+  const outra = getUnidadesOutrasEquipes(equipeId, servicoCod);
 
   if (unidade === 'BLOCO') {
-    // Grid simples de 15 blocos
     let html = '<div class="grid-label">Selecione os blocos realizados</div><div class="bloco-grid">';
     for (let bl = 1; bl <= OBRA_BLOCOS; bl++) {
       const key = `BL${bl}`;
       const pago = getPagoInfo(servicoCod, key);
       const sel = sels.has(key);
+      const deOutra = outra.has(key);
       if (pago) {
         html += `<div class="bloco-card bloqueado" title="Pago em ${pago.mes} – Etapa ${pago.etapa}">
           <span class="bloco-nome">BL ${String(bl).padStart(2,'0')}</span>
           <span class="bloco-pago-label">${pago.mes}<br>Etapa ${pago.etapa}</span>
+        </div>`;
+      } else if (deOutra) {
+        html += `<div class="bloco-card outra-equipe" title="Já usado por outra equipe deste serviço">
+          <span class="bloco-nome">BL ${String(bl).padStart(2,'0')}</span>
+          <span class="bloco-pago-label">Outra equipe</span>
         </div>`;
       } else {
         html += `<div class="bloco-card${sel?' selecionado':''}" onclick="toggleUnidade('${equipeId}','${servicoCod}','${key}','BLOCO')">
@@ -2045,16 +2090,16 @@ function buildGridHTML(equipeId, servicoCod, unidade) {
     return html;
 
   } else if (unidade === 'PAV') {
-    // Accordion: clica no bloco para ver pavimentos
     let html = '<div class="grid-label">Clique num bloco para selecionar pavimentos</div><div class="bloco-grid" id="pav-blocos-'+equipeId+'">';
     for (let bl = 1; bl <= OBRA_BLOCOS; bl++) {
       const totPago = isBlocoTotalmentePago(servicoCod, bl);
       const parcPago = isBlocoParcialmentePago(servicoCod, bl);
       const temSel = PAVIMENTOS.some((_,pi) => sels.has(`BL${bl}_PAV${pi}`));
       const parcSel = temSel && !PAVIMENTOS.every((_,pi) => sels.has(`BL${bl}_PAV${pi}`));
+      const temOutra = PAVIMENTOS.some((_,pi) => outra.has(`BL${bl}_PAV${pi}`));
       let cls = 'bloco-card';
       if (totPago) cls += ' bloqueado';
-      else if (parcPago || parcSel) cls += ' parcial';
+      else if (parcPago || parcSel || temOutra) cls += ' parcial';
       html += `<div class="${cls}" onclick="toggleBlocoExpand('${equipeId}','${servicoCod}',${bl},'PAV')" title="BL ${String(bl).padStart(2,'0')}">
         <span class="bloco-nome">BL ${String(bl).padStart(2,'0')}</span>
       </div>`;
@@ -2068,7 +2113,8 @@ function buildGridHTML(equipeId, servicoCod, unidade) {
       const totPago = isBlocoTotalPagoAPT(servicoCod, bl);
       const parcPago = isBlocoParcialmPagoAPT(servicoCod, bl);
       const temSel = PAVIMENTOS.some((_,pi) => getAptsPorPav(pi).some(apt => sels.has(`BL${bl}_PAV${pi}_APT${apt}`)));
-      const cls = 'bloco-card' + (totPago ? ' bloqueado' : (parcPago || temSel ? ' parcial' : ''));
+      const temOutra = PAVIMENTOS.some((_,pi) => getAptsPorPav(pi).some(apt => outra.has(`BL${bl}_PAV${pi}_APT${apt}`)));
+      const cls = 'bloco-card' + (totPago ? ' bloqueado' : (parcPago || temSel || temOutra ? ' parcial' : ''));
       html += `<div class="${cls}" onclick="toggleBlocoExpand('${equipeId}','${servicoCod}',${bl},'APT')">
         <span class="bloco-nome">BL ${String(bl).padStart(2,'0')}</span>
       </div>`;
@@ -2077,7 +2123,6 @@ function buildGridHTML(equipeId, servicoCod, unidade) {
     return html;
 
   } else {
-    // Genérico: input numérico
     const qtd = (lanc.qtd || 0);
     return `<div class="grid-label">Quantidade (${unidade})</div>
       <input type="number" style="width:120px;" min="0" step="1" value="${qtd}"
@@ -2091,9 +2136,9 @@ function toggleBlocoExpand(equipeId, servicoCod, bl, tipo) {
   if (!sub) return;
   const lanc = DB.lancamentos[equipeId] || { unidades: [] };
   const sels = new Set(lanc.unidades || []);
+  const outra = getUnidadesOutrasEquipes(equipeId, servicoCod);
   const blNome = `BL ${String(bl).padStart(2,'0')}`;
 
-  // Se já aberto para este bloco, fechar
   if (sub.dataset.bloco == bl) { sub.innerHTML = ''; sub.dataset.bloco = ''; return; }
   sub.dataset.bloco = bl;
 
@@ -2105,23 +2150,28 @@ function toggleBlocoExpand(equipeId, servicoCod, bl, tipo) {
       const key = `BL${bl}_PAV${pi}`;
       const pago = getPagoInfo(servicoCod, key);
       const sel = sels.has(key);
+      const deOutra = outra.has(key);
       if (pago) {
         html += `<div class="pav-card bloqueado" title="Pago: ${pago.mes} Et.${pago.etapa}">${pnome}<br><span style="font-size:9px;font-weight:400">${pago.mes}</span></div>`;
+      } else if (deOutra) {
+        html += `<div class="pav-card outra-equipe" title="Já usado por outra equipe deste serviço">${pnome}<br><span style="font-size:9px;font-weight:400">Outra eq.</span></div>`;
       } else {
         html += `<div class="pav-card${sel?' selecionado':''}" onclick="toggleUnidade('${equipeId}','${servicoCod}','${key}','PAV')">${pnome}</div>`;
       }
     });
     html += '</div>';
   } else {
-    // APT: por pavimento
     PAVIMENTOS.forEach((pnome, pi) => {
       html += `<div style="margin-bottom:8px;"><div class="sub-grid-title" style="font-size:11px;margin-bottom:4px;">${pnome}</div><div class="apt-grid">`;
       getAptsPorPav(pi).forEach(apt => {
         const key = `BL${bl}_PAV${pi}_APT${apt}`;
         const pago = getPagoInfo(servicoCod, key);
         const sel = sels.has(key);
+        const deOutra = outra.has(key);
         if (pago) {
           html += `<div class="apt-card bloqueado" title="Pago: ${pago.mes}">${apt}</div>`;
+        } else if (deOutra) {
+          html += `<div class="apt-card outra-equipe" title="Já usado por outra equipe deste serviço">${apt}</div>`;
         } else {
           html += `<div class="apt-card${sel?' selecionado':''}" onclick="toggleUnidade('${equipeId}','${servicoCod}','${key}','APT')">${apt}</div>`;
         }
@@ -2134,6 +2184,12 @@ function toggleBlocoExpand(equipeId, servicoCod, bl, tipo) {
 }
 
 function toggleUnidade(equipeId, servicoCod, key, tipo) {
+  // Verificar se essa unidade já está usada por outra equipe do mesmo serviço
+  const outra = getUnidadesOutrasEquipes(equipeId, servicoCod);
+  if (outra.has(key)) {
+    toast('Este bloco/apt já está selecionado por outra equipe do mesmo serviço!', 'error');
+    return;
+  }
   if (!DB.lancamentos[equipeId]) DB.lancamentos[equipeId] = { qtd: 0, unidades: [], faltas: {} };
   if (!DB.lancamentos[equipeId].unidades) DB.lancamentos[equipeId].unidades = [];
   const unids = DB.lancamentos[equipeId].unidades;
@@ -2146,12 +2202,20 @@ function toggleUnidade(equipeId, servicoCod, key, tipo) {
   const unid = (sv.unidade || tipo).toUpperCase();
   const badge = document.getElementById(`qtd-badge-${equipeId}`);
   if (badge) badge.textContent = `${unids.length} ${pluralUnidade(unids.length, unid)}`;
-  // Re-render só o grid
+  // Re-render o grid desta equipe
   const gridDiv = document.getElementById(`grid-${equipeId}`);
   if (gridDiv) gridDiv.innerHTML = buildGridHTML(equipeId, servicoCod, unid);
-  // Reabrir sub se estava aberto
-  const subId = tipo === 'PAV' ? `pav-sub-${equipeId}` : (tipo === 'APT' ? `apt-sub-${equipeId}` : null);
-  // Não reabre automaticamente — o re-render já inclui o sub
+  // Re-render grids das outras equipes do mesmo serviço para atualizar bloqueios
+  DB.equipes.forEach(eq => {
+    if (eq.id === equipeId || eq.servicoCod !== servicoCod) return;
+    const sv2 = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
+    const unid2 = (sv2.unidade || 'UN').toUpperCase();
+    const gd = document.getElementById(`grid-${eq.id}`);
+    if (gd) gd.innerHTML = buildGridHTML(eq.id, servicoCod, unid2);
+    const badge2 = document.getElementById(`qtd-badge-${eq.id}`);
+    const lanc2 = DB.lancamentos[eq.id] || { unidades: [] };
+    if (badge2) badge2.textContent = `${(lanc2.unidades||[]).length} ${pluralUnidade((lanc2.unidades||[]).length, unid2)}`;
+  });
 }
 
 function salvarFalta(equipeId, codColab, val) {
