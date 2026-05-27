@@ -681,6 +681,31 @@
     transition: background 0.2s;
   }
   .login-btn:hover { background: var(--azul-brilho); }
+  .login-check-wrap {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px; cursor: pointer;
+  }
+  .login-check-wrap input[type="checkbox"] {
+    width: 16px; height: 16px; accent-color: var(--azul-claro); cursor: pointer;
+  }
+  .login-check-label {
+    font-size: 12px; color: var(--cinza-texto);
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer;
+  }
+  /* Seletor de obra no header (admin) */
+  .header-obra-select {
+    background: transparent;
+    border: 1px solid var(--azul-claro);
+    color: var(--azul-claro);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 10px; cursor: pointer; outline: none;
+    max-width: 200px;
+  }
+  .header-obra-select option { background: var(--cinza-escuro); color: var(--branco); }
   .login-user-info {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 13px; color: var(--cinza-texto);
@@ -722,6 +747,25 @@
     color: var(--cinza-texto);
     font-size: 13px;
   }
+
+  /* ─── ENVIOS SALVOS ─── */
+  .envio-card {
+    background: var(--cinza-escuro);
+    border: 1px solid var(--cinza-borda);
+    border-left: 4px solid var(--azul-claro);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .envio-info { display: flex; flex-direction: column; gap: 4px; }
+  .envio-titulo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px; font-weight: 700; text-transform: uppercase;
+    color: var(--branco);
+  }
+  .envio-meta { font-size: 12px; color: var(--cinza-texto); display: flex; gap: 16px; flex-wrap: wrap; }
+  .envio-meta span { display: flex; align-items: center; gap: 4px; }
+  .envio-acoes { display: flex; gap: 8px; }
 </style>
 </head>
 <body>
@@ -744,6 +788,10 @@
         onkeydown="if(event.key==='Enter') fazerLogin()">
     </div>
     <div class="login-erro" id="login-erro"></div>
+    <label class="login-check-wrap">
+      <input type="checkbox" id="login-lembrar">
+      <span class="login-check-label">Manter conectado</span>
+    </label>
     <button class="login-btn" onclick="fazerLogin()">Entrar</button>
   </div>
 </div>
@@ -756,6 +804,9 @@
   <div class="header-meta">
     <span id="header-mes" class="badge">—</span>
     <span id="header-obra" class="badge" style="background:transparent;color:var(--azul-claro);border:1px solid var(--azul-claro);">—</span>
+    <select id="header-obra-admin" class="header-obra-select" style="display:none" onchange="trocarObraAdmin(this.value)">
+      <option value="">— Obra —</option>
+    </select>
     <div class="login-user-info" id="header-user-info" style="display:none">
       <span id="header-user-nome" class="login-user-nome"></span>
       <button class="btn btn-secondary btn-sm" onclick="fazerLogout()" style="padding:4px 10px;font-size:11px;">Sair</button>
@@ -915,15 +966,23 @@
 
     <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
       <button class="btn btn-success" onclick="exportarExcel()">⬇ Exportar Excel</button>
-
+      <button class="btn btn-primary" onclick="salvarEnviar()" style="background:var(--azul-brilho);">📤 Salvar & Enviar</button>
     </div>
   </div>
 
   <!-- ══════════════ PÁGINA 5 – HISTÓRICO ══════════════ -->
   <div class="page" id="page-historico">
-    <div class="section-title">Histórico de Pagamentos por Serviço</div>
+    <div class="section-title">Envios Salvos</div>
     <div class="info-box">
-      Tudo que já foi pago em meses anteriores. Esses blocos/pavimentos/apartamentos ficam <strong>bloqueados</strong> e não podem ser remarcados.
+      Registros enviados pelo engenheiro. Cada envio contém a data/hora, obra, mês e o Excel gerado. Clique em <strong>Excluir</strong> para remover (apenas admin).
+    </div>
+    <div id="envios-container">
+      <div class="no-data">Nenhum envio registrado ainda.</div>
+    </div>
+
+    <div class="section-title" style="margin-top:32px;">Histórico de Blocos Pagos</div>
+    <div class="info-box">
+      Blocos/apartamentos/pavimentos já pagos em envios anteriores ficam <strong>bloqueados</strong> nos lançamentos.
     </div>
     <div id="historico-container">
       <div class="no-data">Nenhum pagamento registrado ainda.</div>
@@ -1278,6 +1337,7 @@ function carregarDBFirebase(obraCod, callback) {
     }
     // Migração e garantia de campos
     if (!DB.historico_pagamentos) DB.historico_pagamentos = {};
+    if (!DB.envios) DB.envios = [];
     if (!DB.equipes) DB.equipes = [];
     if (!DB.lancamentos) DB.lancamentos = {};
     if (!DB.colaboradores) DB.colaboradores = DADOS_INICIAIS.colaboradores;
@@ -1318,6 +1378,7 @@ function carregarUsuarios(callback) {
 function fazerLogin() {
   const usuario = document.getElementById('login-usuario').value.trim().toLowerCase();
   const senha = document.getElementById('login-senha-input').value;
+  const lembrar = document.getElementById('login-lembrar').checked;
   document.getElementById('login-erro').textContent = '';
 
   if (!usuario || !senha) {
@@ -1325,14 +1386,29 @@ function fazerLogin() {
     return;
   }
 
+  // Salvar no localStorage se "manter conectado"
+  if (lembrar) {
+    localStorage.setItem('gp_usuario', usuario);
+    localStorage.setItem('gp_senha', senha);
+    localStorage.setItem('gp_lembrar', '1');
+  } else {
+    localStorage.removeItem('gp_usuario');
+    localStorage.removeItem('gp_senha');
+    localStorage.removeItem('gp_lembrar');
+  }
+
   // Verificar se é login de admin
   if (usuario === 'admin' && senha === ADMIN_SENHA) {
-    usuarioLogado = { usuario: 'admin', nome: 'Administrador', obras: DADOS_INICIAIS.obras.map(o => o.cod), isAdmin: true };
+    usuarioLogado = { usuario: 'admin', nome: 'Administrador', obras: DB.obras.map(o => o.cod), isAdmin: true };
     adminAutenticado = true;
     document.getElementById('login-screen').classList.remove('ativo');
     document.getElementById('header-user-info').style.display = 'flex';
     document.getElementById('header-user-nome').textContent = '👑 Admin';
-    mostrarSeletorObra(usuarioLogado.obras);
+    // Admin não precisa selecionar obra — mostra seletor no header
+    atualizarSeletorObraAdmin();
+    // Carrega a primeira obra automaticamente
+    const primeiraObra = DADOS_INICIAIS.obras[0];
+    if (primeiraObra) iniciarComObra(primeiraObra.cod);
     return;
   }
 
@@ -1348,7 +1424,6 @@ function fazerLogin() {
     document.getElementById('header-user-info').style.display = 'flex';
     document.getElementById('header-user-nome').textContent = user.nome;
 
-    // Se tem só uma obra, carrega direto
     if (usuarioLogado.obras.length === 1) {
       iniciarComObra(usuarioLogado.obras[0]);
     } else if (usuarioLogado.obras.length > 1) {
@@ -1359,6 +1434,24 @@ function fazerLogin() {
       usuarioLogado = null;
     }
   });
+}
+
+function atualizarSeletorObraAdmin() {
+  const sel = document.getElementById('header-obra-admin');
+  sel.innerHTML = '';
+  DADOS_INICIAIS.obras.forEach(o => {
+    const op = document.createElement('option');
+    op.value = o.cod;
+    op.textContent = `${o.cod} – ${o.nome}`;
+    sel.appendChild(op);
+  });
+  sel.style.display = 'block';
+  document.getElementById('header-obra').style.display = 'none';
+}
+
+function trocarObraAdmin(cod) {
+  if (!cod) return;
+  iniciarComObra(cod);
 }
 
 function mostrarSeletorObra(obrasCods) {
@@ -1410,17 +1503,25 @@ function iniciarComObra(obraCod) {
 }
 
 function fazerLogout() {
+  // Limpa localStorage se não estava em modo "lembrar"
+  if (!localStorage.getItem('gp_lembrar')) {
+    localStorage.removeItem('gp_usuario');
+    localStorage.removeItem('gp_senha');
+  }
   usuarioLogado = null;
   obraAtualRef = null;
   DB = JSON.parse(JSON.stringify(DADOS_INICIAIS));
   adminAutenticado = false;
   document.getElementById('login-screen').classList.add('ativo');
-  document.getElementById('login-usuario').value = '';
-  document.getElementById('login-senha-input').value = '';
+  document.getElementById('login-usuario').value = localStorage.getItem('gp_usuario') || '';
+  document.getElementById('login-senha-input').value = localStorage.getItem('gp_senha') || '';
+  document.getElementById('login-lembrar').checked = !!localStorage.getItem('gp_lembrar');
   document.getElementById('login-erro').textContent = '';
   document.getElementById('header-user-info').style.display = 'none';
   document.getElementById('header-mes').textContent = '—';
   document.getElementById('header-obra').textContent = '—';
+  document.getElementById('header-obra').style.display = 'block';
+  document.getElementById('header-obra-admin').style.display = 'none';
 }
 
 // ═══════════════════════════════════════════════════
@@ -1610,9 +1711,6 @@ function adicionarEquipe() {
   if (!svCod || !sup) { toast('Selecione serviço e supervisor!', 'error'); return; }
   const selecionados = [...document.querySelectorAll('.colab-check:checked')].map(c => c.dataset.cod);
   if (!selecionados.length) { toast('Selecione ao menos um colaborador!', 'error'); return; }
-  // verifica duplicata (mesmo serviço + mesmo supervisor)
-  const existente = DB.equipes.find(e => e.servicoCod === svCod && e.supervisor === sup);
-  if (existente) { toast('Já existe equipe para este serviço com este supervisor!', 'error'); return; }
 
   if (!DB.equipes) DB.equipes = [];
   if (!DB.lancamentos) DB.lancamentos = {};
@@ -1623,10 +1721,9 @@ function adicionarEquipe() {
     colaboradores: selecionados,
   };
   DB.equipes.push(equipe);
-  DB.lancamentos[equipe.id] = { qtd: 0, unidades: [], faltas: {} };
+  DB.lancamentos[equipe.id] = { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
   salvarDB();
   toast('✓ Equipe adicionada!');
-  // reset
   document.getElementById('eq-servico').value = '';
   document.getElementById('eq-supervisor').value = '';
   document.querySelectorAll('.colab-check').forEach(c => c.checked = false);
@@ -1835,24 +1932,35 @@ function renderLancamento() {
   if (!DB.equipes.length) { cont.innerHTML = '<div class="no-data">Crie equipes na aba anterior para lançar aqui.</div>'; return; }
   cont.innerHTML = '';
 
+  // Verificar se há equipes bloqueadas (já enviadas)
+  const temBloqueado = DB.equipes.some(eq => DB.lancamentos[eq.id] && DB.lancamentos[eq.id]._bloqueado);
+  if (temBloqueado) {
+    const aviso = document.createElement('div');
+    aviso.className = 'info-box';
+    aviso.style.borderColor = '#F59E0B';
+    aviso.innerHTML = '⚠️ <strong style="color:#F59E0B">Lançamento enviado.</strong> Os dados estão bloqueados. Para editar, vá em <strong>⑤ Histórico</strong> e exclua o envio correspondente.';
+    cont.appendChild(aviso);
+  }
+
   DB.equipes.forEach(eq => {
     const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || { cod: eq.servicoCod, nome: eq.servicoCod, unidade: 'UN', valor: 0 };
-    if (!DB.lancamentos[eq.id]) DB.lancamentos[eq.id] = { qtd: 0, unidades: [], faltas: {} };
+    if (!DB.lancamentos[eq.id]) DB.lancamentos[eq.id] = { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
     const lanc = DB.lancamentos[eq.id];
-    // Garante que unidades sempre existe (compatibilidade com dados antigos)
     if (!lanc.unidades) lanc.unidades = [];
     if (!lanc.faltas) lanc.faltas = {};
+    if (!lanc.descontarFalta) lanc.descontarFalta = {};
+    const bloqueado = !!lanc._bloqueado;
 
     const div = document.createElement('div');
     div.className = 'servico-group';
     div.id = `eq-group-${eq.id}`;
+    if (bloqueado) div.style.opacity = '0.7';
 
     let linhasColab = '';
     eq.colaboradores.forEach(cod => {
       const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
       const faltas = lanc.faltas[cod] || 0;
       const desconta = lanc.descontarFalta && lanc.descontarFalta[cod] === true;
-      // Calcular desconto equivalente para exibir
       const unidStr = (sv.unidade || 'UN').toUpperCase();
       let descInfo = '';
       if (faltas > 0) {
@@ -1866,16 +1974,16 @@ function renderLancamento() {
         <td>${c.nome}</td>
         <td>${c.funcao}</td>
         <td><input type="number" class="falta-input" min="0" max="31" value="${faltas}"
-          onchange="salvarFalta('${eq.id}','${cod}',this.value)"></td>
+          ${bloqueado ? 'disabled' : `onchange="salvarFalta('${eq.id}','${cod}',this.value)"`}></td>
         <td>
-          ${faltas > 0 ? `
+          ${faltas > 0 && !bloqueado ? `
           <div class="falta-wrap">
             <button class="btn-desconto ${desconta ? 'sim' : 'nao'}"
               onclick="toggleDesconto('${eq.id}','${cod}',${!desconta})">
               ${desconta ? '✕ Sim' : '— Não'}
             </button>
             <span class="desconto-info ${desconta ? 'ativo' : ''}">${descInfo}</span>
-          </div>` : '<span style="color:var(--cinza-borda);font-size:12px;">—</span>'}
+          </div>` : faltas > 0 ? `<span class="desconto-info ${desconta ? 'ativo' : ''}">${desconta ? '✕ Sim – '+descInfo : '— Não'}</span>` : '<span style="color:var(--cinza-borda);font-size:12px;">—</span>'}
         </td>
       </tr>`;
     });
@@ -2102,21 +2210,117 @@ function arquivarMesAnterior(mesAnterior, etapaAnterior, obraAnterior) {
 }
 
 // ═══════════════════════════════════════════════════
+// SALVAR & ENVIAR
+// ═══════════════════════════════════════════════════
+function salvarEnviar() {
+  if (!DB.config.mes || !DB.config.obra) {
+    toast('Configure o mês e a obra antes de enviar!', 'error'); return;
+  }
+  if (!DB.equipes.length) {
+    toast('Nenhuma equipe criada!', 'error'); return;
+  }
+  if (!confirm(`Enviar a premiação de ${DB.config.mes} para o histórico?\n\nApós o envio, os lançamentos desta competência ficarão bloqueados.`)) return;
+
+  const agora = new Date();
+  const dataEnvio = agora.toLocaleDateString('pt-BR');
+  const horaEnvio = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const obra = DB.obras.find(o => o.cod === DB.config.obra) || { nome: DB.config.obra };
+
+  // Gerar snapshot dos dados de premiação
+  const snapshot = [];
+  DB.equipes.forEach(eq => {
+    const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
+    const lanc = DB.lancamentos[eq.id] || { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
+    eq.colaboradores.forEach(cod => {
+      const calc = calcularPremiacao(eq, cod);
+      const c = DB.colaboradores.find(x => x.cod === cod) || { nome: cod, funcao: '' };
+      snapshot.push({
+        cod, nome: c.nome, funcao: c.funcao,
+        supervisor: eq.supervisor,
+        servico: sv.nome || eq.servicoCod,
+        faltas: lanc.faltas[cod] || 0,
+        desconto: calc.desconto,
+        qtd: calc.qtd,
+        valorUnit: calc.valor,
+        unidade: calc.unidade,
+        premiacao: calc.porPessoa,
+      });
+    });
+  });
+
+  // Registrar envio
+  if (!DB.envios) DB.envios = [];
+  const envioId = Date.now().toString();
+  DB.envios.push({
+    id: envioId,
+    mes: DB.config.mes,
+    etapa: DB.config.etapa,
+    obra: DB.config.obra,
+    obraNome: obra.nome,
+    engenheiro: DB.config.engenheiro,
+    dataEnvio,
+    horaEnvio,
+    snapshot,
+  });
+
+  // Arquivar blocos pagos no histórico
+  arquivarMesAnterior(DB.config.mes, DB.config.etapa, DB.config.obra);
+
+  // Marcar lançamentos como bloqueados
+  DB.equipes.forEach(eq => {
+    if (DB.lancamentos[eq.id]) DB.lancamentos[eq.id]._bloqueado = true;
+  });
+
+  salvarDB();
+  toast('✅ Premiação enviada e arquivada com sucesso!');
+  goTab('historico');
+}
+
+// ═══════════════════════════════════════════════════
 // HISTÓRICO
 // ═══════════════════════════════════════════════════
 function renderHistorico() {
+  // ─── ENVIOS SALVOS ───
+  const contEnvios = document.getElementById('envios-container');
+  const envios = (DB.envios || []).slice().reverse(); // mais recente primeiro
+  if (!envios.length) {
+    contEnvios.innerHTML = '<div class="no-data">Nenhum envio registrado ainda.</div>';
+  } else {
+    contEnvios.innerHTML = '';
+    envios.forEach(env => {
+      const total = env.snapshot ? env.snapshot.reduce((s, r) => s + (r.premiacao || 0), 0) : 0;
+      const div = document.createElement('div');
+      div.className = 'envio-card';
+      div.innerHTML = `
+        <div class="envio-info">
+          <div class="envio-titulo">📋 ${env.obraNome || env.obra} — ${env.mes} / Etapa ${env.etapa}</div>
+          <div class="envio-meta">
+            <span>🧑‍💼 ${env.engenheiro || '—'}</span>
+            <span>📅 ${env.dataEnvio} às ${env.horaEnvio}</span>
+            <span style="color:var(--azul-claro);font-weight:700">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+            <span>${env.snapshot ? env.snapshot.length : 0} colaboradores</span>
+          </div>
+        </div>
+        <div class="envio-acoes">
+          <button class="btn btn-success btn-sm" onclick="baixarExcelEnvio('${env.id}')">⬇ Excel</button>
+          <button class="btn btn-danger btn-sm" onclick="excluirEnvio('${env.id}')">✕ Excluir</button>
+        </div>`;
+      contEnvios.appendChild(div);
+    });
+  }
+
+  // ─── BLOCOS PAGOS ───
   const cont = document.getElementById('historico-container');
   const hist = DB.historico_pagamentos || {};
   const temDados = Object.values(hist).some(arr => arr.length > 0);
   if (!temDados) {
-    cont.innerHTML = '<div class="no-data">Nenhum pagamento arquivado ainda. O histórico é fechado automaticamente quando o mês muda.</div>';
+    cont.innerHTML = '<div class="no-data">Nenhum bloco/apt arquivado ainda.</div>';
     return;
   }
   cont.innerHTML = '';
   Object.entries(hist).forEach(([svCod, registros]) => {
     if (!registros.length) return;
     const sv = DB.servicos.find(s => s.cod === svCod) || { nome: svCod };
-    // Agrupar por mês/etapa
     const grupos = {};
     registros.forEach(r => {
       const k = `${r.mes || '?'} – Etapa ${r.etapa || '?'}`;
@@ -2145,6 +2349,48 @@ function renderHistorico() {
     div.innerHTML = inner;
     cont.appendChild(div);
   });
+}
+
+function excluirEnvio(envioId) {
+  if (!confirm('Excluir este envio do histórico? Os lançamentos voltarão a ser editáveis.')) return;
+  const idx = (DB.envios || []).findIndex(e => e.id === envioId);
+  if (idx < 0) return;
+  DB.envios.splice(idx, 1);
+  // Desbloquear lançamentos
+  DB.equipes.forEach(eq => {
+    if (DB.lancamentos[eq.id]) delete DB.lancamentos[eq.id]._bloqueado;
+  });
+  salvarDB();
+  renderHistorico();
+  toast('Envio excluído. Lançamentos desbloqueados.');
+}
+
+function baixarExcelEnvio(envioId) {
+  const env = (DB.envios || []).find(e => e.id === envioId);
+  if (!env || !env.snapshot) { toast('Sem dados para exportar.', 'error'); return; }
+  const wb = XLSX.utils.book_new();
+  const rows = [
+    ['GLOBAL PREMIER CONSTRUTORA'],
+    [`CONTROLE DE PREMIAÇÃO – ${(env.obraNome || env.obra).toUpperCase()}`],
+    [`Mês: ${env.mes}   |   Etapa: ${env.etapa}   |   Engenheiro: ${env.engenheiro}`],
+    [`Enviado em: ${env.dataEnvio} às ${env.horaEnvio}`],
+    [],
+    ['CÓD. SIENGE','NOME DO COLABORADOR','FUNÇÃO','SUPERVISOR','SERVIÇO','FALTAS','DESCONTO','QTD LÍQUIDA','UNIDADE','VALOR UNIT. (R$)','PREMIAÇÃO (R$)'],
+  ];
+  env.snapshot.forEach(r => {
+    rows.push([
+      r.cod, r.nome, r.funcao, r.supervisor, r.servico,
+      r.faltas || 0,
+      r.desconto ? `−${r.desconto} ${r.unidade}` : '—',
+      r.qtd, r.unidade, r.valorUnit, r.premiacao,
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [14,40,20,15,50,8,16,10,10,14,14].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Premiação');
+  const nome = `premiacao_${(env.obraNome||env.obra).replace(/\s/g,'_')}_${env.mes}_etapa${env.etapa}.xlsx`;
+  XLSX.writeFile(wb, nome);
+  toast('✓ Excel do envio exportado!');
 }
 
 function removerEntradaHistorico(svCod, unidade, mes) {
@@ -2540,9 +2786,20 @@ function logoutAdmin() {
 // INIT
 // ═══════════════════════════════════════════════════
 (function init() {
-  // App inicia mostrando a tela de login
-  // O carregamento do DB acontece após o login
-  document.getElementById('login-usuario').focus();
+  // Tentar auto-login com credenciais salvas
+  const usuarioSalvo = localStorage.getItem('gp_usuario');
+  const senhaSalva = localStorage.getItem('gp_senha');
+  const lembrar = localStorage.getItem('gp_lembrar');
+  if (usuarioSalvo && senhaSalva && lembrar) {
+    document.getElementById('login-usuario').value = usuarioSalvo;
+    document.getElementById('login-senha-input').value = senhaSalva;
+    document.getElementById('login-lembrar').checked = true;
+    // Auto-login
+    fazerLogin();
+  } else {
+    if (usuarioSalvo) document.getElementById('login-usuario').value = usuarioSalvo;
+    document.getElementById('login-usuario').focus();
+  }
 })();
 </script>
 </body>
