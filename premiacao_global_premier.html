@@ -1498,6 +1498,11 @@ function carregarDBFirebase(obraCod, callback) {
     }
     // Migração e garantia de campos
     if (!DB.historico_pagamentos) DB.historico_pagamentos = {};
+    // Garantir que cada serviço do histórico seja array
+    Object.keys(DB.historico_pagamentos).forEach(svCod => {
+      const raw = DB.historico_pagamentos[svCod];
+      if (raw && !Array.isArray(raw)) DB.historico_pagamentos[svCod] = Object.values(raw);
+    });
     // Firebase converte arrays em objetos — garantir que sejam arrays
     if (!DB.envios) DB.envios = [];
     else if (!Array.isArray(DB.envios)) DB.envios = Object.values(DB.envios);
@@ -2074,7 +2079,9 @@ function getAptsPorPav(pavIdx) {
 }
 
 function getPagoInfo(servicoCod, unidadeKey) {
-  const hist = (DB.historico_pagamentos || {})[servicoCod] || [];
+  const raw = (DB.historico_pagamentos || {})[servicoCod];
+  if (!raw) return null;
+  const hist = Array.isArray(raw) ? raw : Object.values(raw);
   return hist.find(h => h.unidade === unidadeKey) || null;
 }
 
