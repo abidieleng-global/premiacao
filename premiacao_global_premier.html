@@ -2229,17 +2229,24 @@ function renderLancamento() {
 function getUnidadesOutrasEquipes(equipeId, servicoCod) {
   const usado = new Set();
   DB.equipes.forEach(eq => {
-    if (eq.id === equipeId) return; // pula a própria equipe
-    if (eq.servicoCod !== servicoCod) return; // pula serviços diferentes
+    if (eq.id === equipeId) return;
+    if (eq.servicoCod !== servicoCod) return;
     const lanc = DB.lancamentos[eq.id];
-    if (lanc && lanc.unidades) lanc.unidades.forEach(u => usado.add(u));
+    if (!lanc) return;
+    // Firebase pode converter array em objeto — garantir array
+    const unids = Array.isArray(lanc.unidades)
+      ? lanc.unidades
+      : Object.values(lanc.unidades || {});
+    unids.forEach(u => usado.add(u));
   });
   return usado;
 }
 
 function buildGridHTML(equipeId, servicoCod, unidade) {
   const lanc = DB.lancamentos[equipeId] || { unidades: [] };
-  const sels = new Set(lanc.unidades || []);
+  // Firebase pode converter array em objeto
+  const unidsRaw = Array.isArray(lanc.unidades) ? lanc.unidades : Object.values(lanc.unidades || {});
+  const sels = new Set(unidsRaw);
   const outra = getUnidadesOutrasEquipes(equipeId, servicoCod);
 
   if (unidade === 'BLOCO') {
@@ -2314,7 +2321,8 @@ function toggleBlocoExpand(equipeId, servicoCod, bl, tipo) {
   const sub = document.getElementById(subId);
   if (!sub) return;
   const lanc = DB.lancamentos[equipeId] || { unidades: [] };
-  const sels = new Set(lanc.unidades || []);
+  const unidsRaw = Array.isArray(lanc.unidades) ? lanc.unidades : Object.values(lanc.unidades || {});
+  const sels = new Set(unidsRaw);
   const outra = getUnidadesOutrasEquipes(equipeId, servicoCod);
   const blNome = `BL ${String(bl).padStart(2,'0')}`;
 
@@ -2371,6 +2379,10 @@ function toggleUnidade(equipeId, servicoCod, key, tipo) {
   }
   if (!DB.lancamentos[equipeId]) DB.lancamentos[equipeId] = { qtd: 0, unidades: [], faltas: {} };
   if (!DB.lancamentos[equipeId].unidades) DB.lancamentos[equipeId].unidades = [];
+  // Garantir que unidades seja array real (Firebase pode converter em objeto)
+  if (!Array.isArray(DB.lancamentos[equipeId].unidades)) {
+    DB.lancamentos[equipeId].unidades = Object.values(DB.lancamentos[equipeId].unidades);
+  }
   const unids = DB.lancamentos[equipeId].unidades;
   const idx = unids.indexOf(key);
   if (idx >= 0) unids.splice(idx, 1); else unids.push(key);
@@ -2692,10 +2704,16 @@ function editarEnvio(envioId) {
     Object.keys(DB.lancamentos).forEach(id => {
       const l = DB.lancamentos[id];
       if (!l.unidades) l.unidades = [];
-      else if (!Array.isArray(l.unidades)) l.unidades = Object.values(l.unidades);
+      else if (!Array.isArray(l.unidades)) l.unidades = Object.values(l.unidades).filter(v => typeof v === 'string');
       if (!l.faltas) l.faltas = {};
       if (!l.descontarFalta) l.descontarFalta = {};
       delete l._bloqueado;
+    });
+  } else {
+    // Sem lançamentos salvos — criar lançamentos vazios para cada equipe
+    DB.lancamentos = {};
+    DB.equipes.forEach(eq => {
+      DB.lancamentos[eq.id] = { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
     });
   }
 
@@ -2715,9 +2733,12 @@ function editarEnvio(envioId) {
   }
 
   salvarDB();
-  renderHistorico();
+  // Re-render do histórico e ir para lançamento
+  setTimeout(() => {
+    renderLancamento();
+    goTab('lancamento');
+  }, 300);
   toast('Lançamento restaurado! Faça as alterações e envie novamente.');
-  goTab('lancamento');
 }
 
 function encerrarEnvio(envioId) {
