@@ -2430,15 +2430,64 @@ function expandirTodos() {
 function onMesChange(novoMes) {
   const mesAtual = DB.config.mes;
   if (!mesAtual || novoMes === mesAtual) return;
-  if (!DB.equipes.length && !Object.keys(DB.lancamentos).length) return; // nada para perguntar
+  if (!DB.equipes.length && !Object.keys(DB.lancamentos).length) return;
   const [a, m] = novoMes.split('-');
   const label = `${m}/${a}`;
-  if (confirm(`Você está mudando para ${label}.\n\nDeseja limpar as equipes e lançamentos para começar o novo mês?\n\nSim → limpa | Não → mantém tudo`)) {
+
+  // Modal customizado com 3 opções
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.75);
+    display:flex;align-items:center;justify-content:center;z-index:9999;`;
+  overlay.innerHTML = `
+    <div style="background:var(--cinza-escuro);border:1px solid var(--cinza-borda);
+      border-top:3px solid var(--azul-claro);padding:32px;max-width:460px;width:90%;text-align:center;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;
+        letter-spacing:1px;color:var(--branco);margin-bottom:8px;text-transform:uppercase;">
+        Mudando para ${label}
+      </div>
+      <div style="font-size:13px;color:var(--cinza-texto);margin-bottom:28px;line-height:1.6;">
+        O que deseja fazer com as equipes e lançamentos do mês atual?
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button id="mes-opt-limpar" class="btn btn-danger" style="width:100%;justify-content:center;">
+          🗑 Limpar tudo — equipes e lançamentos
+        </button>
+        <button id="mes-opt-manter" class="btn btn-primary" style="width:100%;justify-content:center;">
+          ✓ Manter equipes, limpar só os lançamentos
+        </button>
+        <button id="mes-opt-cancelar" class="btn btn-secondary" style="width:100%;justify-content:center;">
+          ✕ Cancelar — voltar ao mês anterior
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById('mes-opt-limpar').onclick = () => {
     DB.equipes = [];
     DB.lancamentos = {};
     salvarDB();
     toast(`Equipes e lançamentos limpos para ${label}.`);
-  }
+    document.body.removeChild(overlay);
+  };
+
+  document.getElementById('mes-opt-manter').onclick = () => {
+    // Limpa só os lançamentos, mantém as equipes
+    const novoLanc = {};
+    DB.equipes.forEach(eq => {
+      novoLanc[eq.id] = { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
+    });
+    DB.lancamentos = novoLanc;
+    salvarDB();
+    toast(`Lançamentos limpos. Equipes mantidas para ${label}.`);
+    document.body.removeChild(overlay);
+  };
+
+  document.getElementById('mes-opt-cancelar').onclick = () => {
+    // Reverte o campo de mês para o valor anterior
+    document.getElementById('cfg-mes').value = mesAtual;
+    document.body.removeChild(overlay);
+  };
 }
 
 function salvarFalta(equipeId, codColab, val) {
@@ -2690,20 +2739,32 @@ function excluirEnvio(envioId) {
   if (env.encerrado && !adminAutenticado) { toast('Envio encerrado só pode ser excluído pelo admin.', 'error'); return; }
   const msg = env.encerrado
     ? 'ATENÇÃO: Este envio foi encerrado e aprovado para pagamento.\nDeseja excluí-lo mesmo assim?'
-    : 'Excluir este envio? Os lançamentos voltarão a ser editáveis.';
+    : 'Excluir este envio? Os lançamentos e blocos pagos deste mês voltarão ao normal.';
   if (!confirm(msg)) return;
   const idx = (DB.envios || []).findIndex(e => e.id === envioId);
   if (idx < 0) return;
   DB.envios.splice(idx, 1);
+
+  // Desbloquear lançamentos se não há mais envios encerrados
   const temEncerrado = (DB.envios || []).some(e => e.encerrado);
   if (!temEncerrado) {
     DB.equipes.forEach(eq => {
       if (DB.lancamentos[eq.id]) delete DB.lancamentos[eq.id]._bloqueado;
     });
   }
+
+  // Remover blocos do histórico de pagamentos referentes a este envio
+  if (DB.historico_pagamentos) {
+    Object.keys(DB.historico_pagamentos).forEach(svCod => {
+      DB.historico_pagamentos[svCod] = DB.historico_pagamentos[svCod].filter(
+        h => !(h.mes === env.mes && h.etapa == env.etapa && h.obra === env.obra)
+      );
+    });
+  }
+
   salvarDB();
   renderHistorico();
-  toast('Envio excluído.');
+  toast('Envio excluído. Blocos liberados para novo lançamento.');
 }
 
 function baixarExcelEnvio(envioId) {
