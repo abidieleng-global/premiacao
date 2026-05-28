@@ -1501,6 +1501,17 @@ function carregarDBFirebase(obraCod, callback) {
     // Firebase converte arrays em objetos — garantir que sejam arrays
     if (!DB.envios) DB.envios = [];
     else if (!Array.isArray(DB.envios)) DB.envios = Object.values(DB.envios);
+    // Corrigir equipes/lancamentos dentro de cada envio
+    DB.envios.forEach(env => {
+      if (env.equipes && !Array.isArray(env.equipes)) env.equipes = Object.values(env.equipes);
+      if (env.snapshot && !Array.isArray(env.snapshot)) env.snapshot = Object.values(env.snapshot);
+      if (env.lancamentos && typeof env.lancamentos === 'object') {
+        Object.keys(env.lancamentos).forEach(id => {
+          const l = env.lancamentos[id];
+          if (l.unidades && !Array.isArray(l.unidades)) l.unidades = Object.values(l.unidades);
+        });
+      }
+    });
     if (!DB.equipes) DB.equipes = [];
     else if (!Array.isArray(DB.equipes)) DB.equipes = Object.values(DB.equipes);
     if (!DB.lancamentos) DB.lancamentos = {};
@@ -2651,25 +2662,47 @@ function renderHistorico() {
 
 function editarEnvio(envioId) {
   const idx = (DB.envios || []).findIndex(e => e.id === envioId);
-  if (idx < 0) return;
+  if (idx < 0) { toast('Envio não encontrado.', 'error'); return; }
   const env = DB.envios[idx];
   if (env.encerrado) { toast('Este envio foi encerrado pelo admin e não pode ser editado.', 'error'); return; }
   if (!confirm('Reabrir este envio para edição?\n\nOs lançamentos serão restaurados para você corrigir e reenviar.')) return;
 
-  // Restaurar equipes e lançamentos do envio
-  if (env.equipes && env.lancamentos) {
-    DB.equipes = JSON.parse(JSON.stringify(env.equipes));
-    DB.lancamentos = JSON.parse(JSON.stringify(env.lancamentos));
+  // Restaurar equipes — converter de objeto para array se necessário (Firebase corrompeu)
+  if (env.equipes) {
+    const eqs = Array.isArray(env.equipes)
+      ? env.equipes
+      : Object.values(env.equipes);
+    DB.equipes = JSON.parse(JSON.stringify(eqs));
+  }
+
+  // Restaurar lançamentos
+  if (env.lancamentos) {
+    const lancs = (typeof env.lancamentos === 'object' && !Array.isArray(env.lancamentos))
+      ? env.lancamentos
+      : {};
+    DB.lancamentos = JSON.parse(JSON.stringify(lancs));
+    // Garantir que arrays internos estejam corretos
+    Object.keys(DB.lancamentos).forEach(id => {
+      const l = DB.lancamentos[id];
+      if (!l.unidades) l.unidades = [];
+      else if (!Array.isArray(l.unidades)) l.unidades = Object.values(l.unidades);
+      if (!l.faltas) l.faltas = {};
+      if (!l.descontarFalta) l.descontarFalta = {};
+      delete l._bloqueado;
+    });
   }
 
   // Remover o envio (será recriado ao reenviar)
   DB.envios.splice(idx, 1);
 
-  // Remover blocos do histórico referentes a este envio para permitir reedição
+  // Remover blocos do histórico referentes a este envio para liberar edição
   if (DB.historico_pagamentos) {
     Object.keys(DB.historico_pagamentos).forEach(svCod => {
-      DB.historico_pagamentos[svCod] = DB.historico_pagamentos[svCod].filter(
-        h => !(h.mes === env.mes && h.etapa == env.etapa && h.obra === env.obra)
+      const arr = Array.isArray(DB.historico_pagamentos[svCod])
+        ? DB.historico_pagamentos[svCod]
+        : Object.values(DB.historico_pagamentos[svCod] || {});
+      DB.historico_pagamentos[svCod] = arr.filter(
+        h => !(h.mes === env.mes && String(h.etapa) === String(env.etapa) && h.obra === env.obra)
       );
     });
   }
