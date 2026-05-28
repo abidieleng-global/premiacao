@@ -2101,16 +2101,6 @@ function renderLancamento() {
   if (!DB.equipes.length) { cont.innerHTML = '<div class="no-data">Crie equipes na aba anterior para lançar aqui.</div>'; return; }
   cont.innerHTML = '';
 
-  // Verificar se há equipes bloqueadas (já enviadas)
-  const temBloqueado = DB.equipes.some(eq => DB.lancamentos[eq.id] && DB.lancamentos[eq.id]._bloqueado);
-  if (temBloqueado) {
-    const aviso = document.createElement('div');
-    aviso.className = 'info-box';
-    aviso.style.borderColor = '#F59E0B';
-    aviso.innerHTML = '⚠️ <strong style="color:#F59E0B">Lançamento enviado.</strong> Os dados estão bloqueados. Para editar, vá em <strong>⑤ Histórico</strong> e exclua o envio correspondente.';
-    cont.appendChild(aviso);
-  }
-
   DB.equipes.forEach(eq => {
     const sv = DB.servicos.find(s => s.cod === eq.servicoCod) || { cod: eq.servicoCod, nome: eq.servicoCod, unidade: 'UN', valor: 0 };
     if (!DB.lancamentos[eq.id]) DB.lancamentos[eq.id] = { qtd: 0, unidades: [], faltas: {}, descontarFalta: {} };
@@ -2118,12 +2108,10 @@ function renderLancamento() {
     if (!lanc.unidades) lanc.unidades = [];
     if (!lanc.faltas) lanc.faltas = {};
     if (!lanc.descontarFalta) lanc.descontarFalta = {};
-    const bloqueado = !!lanc._bloqueado;
 
     const div = document.createElement('div');
     div.className = 'servico-group';
     div.id = `eq-group-${eq.id}`;
-    if (bloqueado) div.style.opacity = '0.7';
 
     let linhasColab = '';
     eq.colaboradores.forEach(cod => {
@@ -2143,16 +2131,16 @@ function renderLancamento() {
         <td>${c.nome}</td>
         <td>${c.funcao}</td>
         <td><input type="number" class="falta-input" min="0" max="31" value="${faltas}"
-          ${bloqueado ? 'disabled' : `onchange="salvarFalta('${eq.id}','${cod}',this.value)"`}></td>
+          onchange="salvarFalta('${eq.id}','${cod}',this.value)"></td>
         <td>
-          ${faltas > 0 && !bloqueado ? `
+          ${faltas > 0 ? `
           <div class="falta-wrap">
             <button class="btn-desconto ${desconta ? 'sim' : 'nao'}"
               onclick="toggleDesconto('${eq.id}','${cod}',${!desconta})">
               ${desconta ? '✕ Sim' : '— Não'}
             </button>
             <span class="desconto-info ${desconta ? 'ativo' : ''}">${descInfo}</span>
-          </div>` : faltas > 0 ? `<span class="desconto-info ${desconta ? 'ativo' : ''}">${desconta ? '✕ Sim – '+descInfo : '— Não'}</span>` : '<span style="color:var(--cinza-borda);font-size:12px;">—</span>'}
+          </div>` : '<span style="color:var(--cinza-borda);font-size:12px;">—</span>'}
         </td>
       </tr>`;
     });
@@ -2542,7 +2530,7 @@ function salvarEnviar() {
     });
   });
 
-  // Registrar envio
+  // Registrar envio — salvar também snapshot das equipes e lançamentos para restaurar ao editar
   if (!DB.envios) DB.envios = [];
   const envioId = Date.now().toString();
   DB.envios.push({
@@ -2555,18 +2543,20 @@ function salvarEnviar() {
     dataEnvio,
     horaEnvio,
     snapshot,
+    // Guardar estrutura completa para restaurar ao editar
+    equipes: JSON.parse(JSON.stringify(DB.equipes)),
+    lancamentos: JSON.parse(JSON.stringify(DB.lancamentos)),
   });
 
   // Arquivar blocos pagos no histórico
   arquivarMesAnterior(DB.config.mes, DB.config.etapa, DB.config.obra);
 
-  // Marcar lançamentos como bloqueados
-  DB.equipes.forEach(eq => {
-    if (DB.lancamentos[eq.id]) DB.lancamentos[eq.id]._bloqueado = true;
-  });
+  // Zerar equipes e lançamentos — aba de lançamento fica em branco
+  DB.equipes = [];
+  DB.lancamentos = {};
 
   salvarDB();
-  toast('✅ Premiação enviada e arquivada com sucesso!');
+  toast('✅ Premiação enviada! A aba de lançamento foi zerada.');
   goTab('historico');
 }
 
@@ -2664,14 +2654,29 @@ function editarEnvio(envioId) {
   if (idx < 0) return;
   const env = DB.envios[idx];
   if (env.encerrado) { toast('Este envio foi encerrado pelo admin e não pode ser editado.', 'error'); return; }
-  if (!confirm('Reabrir este envio para edição?\n\nO lançamento ficará desbloqueado para você alterar e reenviar.')) return;
+  if (!confirm('Reabrir este envio para edição?\n\nOs lançamentos serão restaurados para você corrigir e reenviar.')) return;
+
+  // Restaurar equipes e lançamentos do envio
+  if (env.equipes && env.lancamentos) {
+    DB.equipes = JSON.parse(JSON.stringify(env.equipes));
+    DB.lancamentos = JSON.parse(JSON.stringify(env.lancamentos));
+  }
+
+  // Remover o envio (será recriado ao reenviar)
   DB.envios.splice(idx, 1);
-  DB.equipes.forEach(eq => {
-    if (DB.lancamentos[eq.id]) delete DB.lancamentos[eq.id]._bloqueado;
-  });
+
+  // Remover blocos do histórico referentes a este envio para permitir reedição
+  if (DB.historico_pagamentos) {
+    Object.keys(DB.historico_pagamentos).forEach(svCod => {
+      DB.historico_pagamentos[svCod] = DB.historico_pagamentos[svCod].filter(
+        h => !(h.mes === env.mes && h.etapa == env.etapa && h.obra === env.obra)
+      );
+    });
+  }
+
   salvarDB();
   renderHistorico();
-  toast('Lançamento desbloqueado! Faça as alterações e envie novamente.');
+  toast('Lançamento restaurado! Faça as alterações e envie novamente.');
   goTab('lancamento');
 }
 
