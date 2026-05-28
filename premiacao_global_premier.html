@@ -793,6 +793,41 @@
   .envio-meta { font-size: 12px; color: var(--cinza-texto); display: flex; gap: 16px; flex-wrap: wrap; }
   .envio-meta span { display: flex; align-items: center; gap: 4px; }
   .envio-acoes { display: flex; gap: 8px; }
+
+  /* ─── CORES POR SUPERVISOR ─── */
+  .sup-cor-0 { border-left: 3px solid #4A90D9 !important; }
+  .sup-cor-1 { border-left: 3px solid #E67E22 !important; }
+  .sup-cor-2 { border-left: 3px solid #27AE60 !important; }
+  .sup-cor-3 { border-left: 3px solid #9B59B6 !important; }
+  .sup-cor-4 { border-left: 3px solid #E74C3C !important; }
+  .sup-cor-5 { border-left: 3px solid #F1C40F !important; }
+  .sup-cor-6 { border-left: 3px solid #1ABC9C !important; }
+  .sup-cor-7 { border-left: 3px solid #E91E63 !important; }
+  .sup-tag-0 { color:#4A90D9 !important; }
+  .sup-tag-1 { color:#E67E22 !important; }
+  .sup-tag-2 { color:#27AE60 !important; }
+  .sup-tag-3 { color:#9B59B6 !important; }
+  .sup-tag-4 { color:#E74C3C !important; }
+  .sup-tag-5 { color:#F1C40F !important; }
+  .sup-tag-6 { color:#1ABC9C !important; }
+  .sup-tag-7 { color:#E91E63 !important; }
+
+  /* ─── TOTALIZADOR + MINIMIZAR ─── */
+  .eq-badge-wrap { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+  .eq-total-qtd { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; color:var(--azul-claro); line-height:1; }
+  .eq-total-rs  { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:600; color:#27AE60; letter-spacing:0.5px; }
+  .eq-total-prog{ font-family:'Barlow Condensed',sans-serif; font-size:11px; color:var(--cinza-texto); letter-spacing:0.5px; }
+
+  .eq-body { overflow:hidden; transition:max-height 0.3s ease; max-height:3000px; }
+  .eq-body.minimizado { max-height:0; }
+  .btn-minimizar {
+    background:transparent; border:none; cursor:pointer;
+    color:var(--cinza-texto); font-size:18px; line-height:1;
+    padding:2px 8px; transition:color 0.15s, transform 0.25s;
+    display:flex; align-items:center;
+  }
+  .btn-minimizar:hover { color:var(--branco); }
+  .btn-minimizar.minimizado { transform:rotate(-90deg); }
 </style>
 </head>
 <body>
@@ -859,7 +894,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>Mês de Referência</label>
-          <input type="month" id="cfg-mes">
+          <input type="month" id="cfg-mes" onchange="onMesChange(this.value)">
         </div>
         <div class="form-group">
           <label>Obra</label>
@@ -954,6 +989,10 @@
     <div class="section-title">Lançamento de Produção e Faltas</div>
     <div class="info-box">
       Para cada equipe: informe a <strong>quantidade de serviço realizado</strong> (blocos, apartamentos, pavimentos...) e as <strong>faltas</strong> de cada colaborador. A premiação é calculada automaticamente.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn btn-secondary btn-sm" onclick="minimizarTodos()">▲ Minimizar Todos</button>
+      <button class="btn btn-secondary btn-sm" onclick="expandirTodos()">▼ Expandir Todos</button>
     </div>
     <div id="lancamento-container">
       <div class="no-data">Crie equipes na aba anterior para lançar aqui.</div>
@@ -2018,29 +2057,60 @@ function renderLancamento() {
     const unid = (sv.unidade || 'UN').toUpperCase();
     const gridHTML = buildGridHTML(eq.id, sv.cod, unid);
 
+    // Cor do supervisor
+    const supIdx = (DB.supervisores || []).indexOf(eq.supervisor) % 8;
+    const supCorClass = supIdx >= 0 ? `sup-cor-${supIdx}` : '';
+    const supTagClass = supIdx >= 0 ? `sup-tag-${supIdx}` : '';
+
+    // Totalizador da equipe
+    const totalEquipeR$ = eq.colaboradores.reduce((sum, cod) => {
+      const calc = calcularPremiacao(eq, cod);
+      return sum + calc.porPessoa;
+    }, 0);
+
+    // Progresso (só para BLOCO)
+    const qtdSel = (lanc.unidades||[]).length;
+    let progLabel = `${qtdSel} ${pluralUnidade(qtdSel, unid)}`;
+    if (unid === 'BLOCO') progLabel = `${qtdSel}/15 BLOCOS`;
+    else if (unid === 'PAV') {
+      const totalPavs = 15 * 4;
+      progLabel = `${qtdSel}/${totalPavs} PAVS`;
+    } else if (unid === 'APT') {
+      const totalApts = 15 * 16;
+      progLabel = `${qtdSel}/${totalApts} APTS`;
+    }
+
+    div.className = `servico-group ${supCorClass}`;
     div.innerHTML = `
-      <div class="servico-header">
-        <div>
-          <div class="servico-nome">${sv.nome || eq.servicoCod}</div>
-          <div class="servico-meta">
-            <span>Supervisor: <strong style="color:var(--branco)">${eq.supervisor}</strong></span>
-            <span class="servico-preco">${sv.unidade || ''} · Prof: R$ ${(sv.valorProfissional||sv.valor||0).toFixed(2)} / Ajud: R$ ${(sv.valorAjudante||0).toFixed(2)}</span>
+      <div class="servico-header" style="cursor:pointer;" onclick="toggleMinimizar('${eq.id}')">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn-minimizar" id="btn-min-${eq.id}" title="Minimizar/Expandir" onclick="event.stopPropagation();toggleMinimizar('${eq.id}')">▼</button>
+          <div>
+            <div class="servico-nome">${sv.nome || eq.servicoCod}</div>
+            <div class="servico-meta">
+              <span>Supervisor: <strong class="${supTagClass}">${eq.supervisor}</strong></span>
+              <span class="servico-preco">${sv.unidade || ''} · Prof: R$ ${(sv.valorProfissional||sv.valor||0).toFixed(2)} / Ajud: R$ ${(sv.valorAjudante||0).toFixed(2)}</span>
+            </div>
           </div>
         </div>
-        <div id="qtd-badge-${eq.id}" style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--azul-claro);">
-          ${(lanc.unidades||[]).length} ${pluralUnidade((lanc.unidades||[]).length, unid)}
+        <div class="eq-badge-wrap" id="qtd-badge-${eq.id}">
+          <span class="eq-total-qtd">${progLabel}</span>
+          <span class="eq-total-rs">R$ ${totalEquipeR$.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+          <span class="eq-total-prog">${eq.colaboradores.length} colaboradores</span>
         </div>
       </div>
-      <div style="padding:12px 18px 16px;">
-        <div class="grid-unidades" id="grid-${eq.id}">
-          ${gridHTML}
+      <div class="eq-body" id="eq-body-${eq.id}">
+        <div style="padding:12px 18px 16px;">
+          <div class="grid-unidades" id="grid-${eq.id}">
+            ${gridHTML}
+          </div>
+          <table style="width:100%;margin-top:14px;">
+            <thead><tr>
+              <th>Cód.</th><th>Colaborador</th><th>Função</th><th>Faltas</th><th>Descontar?</th>
+            </tr></thead>
+            <tbody>${linhasColab}</tbody>
+          </table>
         </div>
-        <table style="width:100%;margin-top:14px;">
-          <thead><tr>
-            <th>Cód.</th><th>Colaborador</th><th>Função</th><th>Faltas</th><th>Descontar?</th>
-          </tr></thead>
-          <tbody>${linhasColab}</tbody>
-        </table>
       </div>`;
     cont.appendChild(div);
   });
@@ -2197,25 +2267,82 @@ function toggleUnidade(equipeId, servicoCod, key, tipo) {
   if (idx >= 0) unids.splice(idx, 1); else unids.push(key);
   DB.lancamentos[equipeId].qtd = unids.length;
   salvarDB();
-  // Atualizar badge
+  // Atualizar badge desta equipe
   const sv = DB.servicos.find(s => DB.equipes.find(e => e.id === equipeId)?.servicoCod === s.cod) || {};
   const unid = (sv.unidade || tipo).toUpperCase();
-  const badge = document.getElementById(`qtd-badge-${equipeId}`);
-  if (badge) badge.textContent = `${unids.length} ${pluralUnidade(unids.length, unid)}`;
+  const eq = DB.equipes.find(e => e.id === equipeId);
+  atualizarBadgeEquipe(equipeId, unid, eq);
   // Re-render o grid desta equipe
   const gridDiv = document.getElementById(`grid-${equipeId}`);
   if (gridDiv) gridDiv.innerHTML = buildGridHTML(equipeId, servicoCod, unid);
   // Re-render grids das outras equipes do mesmo serviço para atualizar bloqueios
-  DB.equipes.forEach(eq => {
-    if (eq.id === equipeId || eq.servicoCod !== servicoCod) return;
-    const sv2 = DB.servicos.find(s => s.cod === eq.servicoCod) || {};
+  DB.equipes.forEach(eq2 => {
+    if (eq2.id === equipeId || eq2.servicoCod !== servicoCod) return;
+    const sv2 = DB.servicos.find(s => s.cod === eq2.servicoCod) || {};
     const unid2 = (sv2.unidade || 'UN').toUpperCase();
-    const gd = document.getElementById(`grid-${eq.id}`);
-    if (gd) gd.innerHTML = buildGridHTML(eq.id, servicoCod, unid2);
-    const badge2 = document.getElementById(`qtd-badge-${eq.id}`);
-    const lanc2 = DB.lancamentos[eq.id] || { unidades: [] };
-    if (badge2) badge2.textContent = `${(lanc2.unidades||[]).length} ${pluralUnidade((lanc2.unidades||[]).length, unid2)}`;
+    const gd = document.getElementById(`grid-${eq2.id}`);
+    if (gd) gd.innerHTML = buildGridHTML(eq2.id, servicoCod, unid2);
+    atualizarBadgeEquipe(eq2.id, unid2, eq2);
   });
+}
+
+function atualizarBadgeEquipe(equipeId, unid, eq) {
+  const badge = document.getElementById(`qtd-badge-${equipeId}`);
+  if (!badge) return;
+  const lanc = DB.lancamentos[equipeId] || { unidades: [] };
+  const qtdSel = (lanc.unidades||[]).length;
+  let progLabel = `${qtdSel} ${pluralUnidade(qtdSel, unid)}`;
+  if (unid === 'BLOCO') progLabel = `${qtdSel}/15 BLOCOS`;
+  else if (unid === 'PAV') progLabel = `${qtdSel}/${15*4} PAVS`;
+  else if (unid === 'APT') progLabel = `${qtdSel}/${15*16} APTS`;
+  const eqRef = eq || DB.equipes.find(e => e.id === equipeId);
+  const totalR$ = eqRef ? eqRef.colaboradores.reduce((s, cod) => {
+    const calc = calcularPremiacao(eqRef, cod); return s + calc.porPessoa;
+  }, 0) : 0;
+  badge.innerHTML = `
+    <span class="eq-total-qtd">${progLabel}</span>
+    <span class="eq-total-rs">R$ ${totalR$.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+    <span class="eq-total-prog">${eqRef ? eqRef.colaboradores.length : 0} colaboradores</span>`;
+}
+
+function toggleMinimizar(equipeId) {
+  const body = document.getElementById(`eq-body-${equipeId}`);
+  const btn  = document.getElementById(`btn-min-${equipeId}`);
+  if (!body) return;
+  const min = body.classList.toggle('minimizado');
+  if (btn) btn.classList.toggle('minimizado', min);
+}
+
+function minimizarTodos() {
+  DB.equipes.forEach(eq => {
+    const body = document.getElementById(`eq-body-${eq.id}`);
+    const btn  = document.getElementById(`btn-min-${eq.id}`);
+    if (body) body.classList.add('minimizado');
+    if (btn)  btn.classList.add('minimizado');
+  });
+}
+
+function expandirTodos() {
+  DB.equipes.forEach(eq => {
+    const body = document.getElementById(`eq-body-${eq.id}`);
+    const btn  = document.getElementById(`btn-min-${eq.id}`);
+    if (body) body.classList.remove('minimizado');
+    if (btn)  btn.classList.remove('minimizado');
+  });
+}
+
+function onMesChange(novoMes) {
+  const mesAtual = DB.config.mes;
+  if (!mesAtual || novoMes === mesAtual) return;
+  if (!DB.equipes.length && !Object.keys(DB.lancamentos).length) return; // nada para perguntar
+  const [a, m] = novoMes.split('-');
+  const label = `${m}/${a}`;
+  if (confirm(`Você está mudando para ${label}.\n\nDeseja limpar as equipes e lançamentos para começar o novo mês?\n\nSim → limpa | Não → mantém tudo`)) {
+    DB.equipes = [];
+    DB.lancamentos = {};
+    salvarDB();
+    toast(`Equipes e lançamentos limpos para ${label}.`);
+  }
 }
 
 function salvarFalta(equipeId, codColab, val) {
@@ -2405,7 +2532,6 @@ function renderHistorico() {
         inner += `<div class="hist-chip">
           <span class="hist-chip-nome">${label}</span>
           <span class="hist-chip-data">${r.dataPgto || ''}</span>
-          <span class="hist-chip-del" onclick="removerEntradaHistorico('${svCod}','${r.unidade}','${r.mes}')" title="Remover (admin)">×</span>
         </div>`;
       });
       inner += '</div>';
