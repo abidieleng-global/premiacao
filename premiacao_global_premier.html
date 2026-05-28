@@ -793,6 +793,7 @@
   .envio-meta { font-size: 12px; color: var(--cinza-texto); display: flex; gap: 16px; flex-wrap: wrap; }
   .envio-meta span { display: flex; align-items: center; gap: 4px; }
   .envio-acoes { display: flex; gap: 8px; }
+  .envio-card.encerrado { border-left-color: var(--verde); opacity: 0.9; }
 
   /* ─── CORES POR SUPERVISOR ─── */
   .sup-cor-0 { border-left: 3px solid #4A90D9 !important; }
@@ -2480,8 +2481,25 @@ function renderHistorico() {
     contEnvios.innerHTML = '';
     envios.forEach(env => {
       const total = env.snapshot ? env.snapshot.reduce((s, r) => s + (r.premiacao || 0), 0) : 0;
+      const encerrado = !!env.encerrado;
       const div = document.createElement('div');
-      div.className = 'envio-card';
+      div.className = 'envio-card' + (encerrado ? ' encerrado' : '');
+
+      const statusBadge = encerrado
+        ? `<span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--verde);border:1px solid var(--verde);padding:2px 10px;letter-spacing:1px;text-transform:uppercase;">✔ Encerrado ${env.dataEncerramento||''}</span>`
+        : `<span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--azul-claro);border:1px solid var(--azul-claro);padding:2px 10px;letter-spacing:1px;text-transform:uppercase;">Em aberto</span>`;
+
+      let botoes = `<button class="btn btn-success btn-sm" onclick="baixarExcelEnvio('${env.id}')">⬇ Excel</button>`;
+      if (!encerrado) {
+        botoes += `<button class="btn btn-secondary btn-sm" onclick="editarEnvio('${env.id}')">✎ Editar</button>`;
+        if (adminAutenticado) {
+          botoes += `<button class="btn btn-primary btn-sm" onclick="encerrarEnvio('${env.id}')" style="background:#1B6B3A;border-color:#1B6B3A;">🔒 Encerrar</button>`;
+        }
+        botoes += `<button class="btn btn-danger btn-sm" onclick="excluirEnvio('${env.id}')">✕ Excluir</button>`;
+      } else if (adminAutenticado) {
+        botoes += `<button class="btn btn-danger btn-sm" onclick="excluirEnvio('${env.id}')">✕ Excluir</button>`;
+      }
+
       div.innerHTML = `
         <div class="envio-info">
           <div class="envio-titulo">📋 ${env.obraNome || env.obra} — ${env.mes} / Etapa ${env.etapa}</div>
@@ -2490,12 +2508,10 @@ function renderHistorico() {
             <span>📅 ${env.dataEnvio} às ${env.horaEnvio}</span>
             <span style="color:var(--azul-claro);font-weight:700">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
             <span>${env.snapshot ? env.snapshot.length : 0} colaboradores</span>
+            ${statusBadge}
           </div>
         </div>
-        <div class="envio-acoes">
-          <button class="btn btn-success btn-sm" onclick="baixarExcelEnvio('${env.id}')">⬇ Excel</button>
-          <button class="btn btn-danger btn-sm" onclick="excluirEnvio('${env.id}')">✕ Excluir</button>
-        </div>`;
+        <div class="envio-acoes">${botoes}</div>`;
       contEnvios.appendChild(div);
     });
   }
@@ -2541,18 +2557,58 @@ function renderHistorico() {
   });
 }
 
-function excluirEnvio(envioId) {
-  if (!confirm('Excluir este envio do histórico? Os lançamentos voltarão a ser editáveis.')) return;
+function editarEnvio(envioId) {
   const idx = (DB.envios || []).findIndex(e => e.id === envioId);
   if (idx < 0) return;
+  const env = DB.envios[idx];
+  if (env.encerrado) { toast('Este envio foi encerrado pelo admin e não pode ser editado.', 'error'); return; }
+  if (!confirm('Reabrir este envio para edição?\n\nO lançamento ficará desbloqueado para você alterar e reenviar.')) return;
   DB.envios.splice(idx, 1);
-  // Desbloquear lançamentos
   DB.equipes.forEach(eq => {
     if (DB.lancamentos[eq.id]) delete DB.lancamentos[eq.id]._bloqueado;
   });
   salvarDB();
   renderHistorico();
-  toast('Envio excluído. Lançamentos desbloqueados.');
+  toast('Lançamento desbloqueado! Faça as alterações e envie novamente.');
+  goTab('lancamento');
+}
+
+function encerrarEnvio(envioId) {
+  if (!adminAutenticado) { toast('Apenas o admin pode encerrar envios.', 'error'); return; }
+  if (!confirm('Encerrar este envio definitivamente?\n\nIsso indica que a premiação foi aprovada e encaminhada ao pagamento. O engenheiro não poderá mais editar.')) return;
+  const env = (DB.envios || []).find(e => e.id === envioId);
+  if (!env) return;
+  const agora = new Date();
+  env.encerrado = true;
+  env.dataEncerramento = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  DB.equipes.forEach(eq => {
+    if (DB.lancamentos[eq.id]) DB.lancamentos[eq.id]._bloqueado = true;
+  });
+  salvarDB();
+  renderHistorico();
+  toast('✔ Envio encerrado. Premiação bloqueada definitivamente.');
+}
+
+function excluirEnvio(envioId) {
+  const env = (DB.envios || []).find(e => e.id === envioId);
+  if (!env) return;
+  if (env.encerrado && !adminAutenticado) { toast('Envio encerrado só pode ser excluído pelo admin.', 'error'); return; }
+  const msg = env.encerrado
+    ? 'ATENÇÃO: Este envio foi encerrado e aprovado para pagamento.\nDeseja excluí-lo mesmo assim?'
+    : 'Excluir este envio? Os lançamentos voltarão a ser editáveis.';
+  if (!confirm(msg)) return;
+  const idx = (DB.envios || []).findIndex(e => e.id === envioId);
+  if (idx < 0) return;
+  DB.envios.splice(idx, 1);
+  const temEncerrado = (DB.envios || []).some(e => e.encerrado);
+  if (!temEncerrado) {
+    DB.equipes.forEach(eq => {
+      if (DB.lancamentos[eq.id]) delete DB.lancamentos[eq.id]._bloqueado;
+    });
+  }
+  salvarDB();
+  renderHistorico();
+  toast('Envio excluído.');
 }
 
 function baixarExcelEnvio(envioId) {
