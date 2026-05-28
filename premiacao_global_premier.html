@@ -883,6 +883,7 @@
   <div class="tab" onclick="goTab('lancamento')">③ Lançamento</div>
   <div class="tab" onclick="goTab('resumo')">④ Resumo & Export</div>
   <div class="tab" onclick="goTab('historico')">⑤ Histórico</div>
+  <div class="tab" onclick="goTab('relatorios')">⑥ Relatórios</div>
   <div class="tab" onclick="goTab('admin')">⚙ Admin</div>
 </div>
 
@@ -1056,7 +1057,100 @@
     </div>
   </div>
 
-  <!-- ══════════════ PÁGINA 6 – ADMIN ══════════════ -->
+  <!-- ══════════════ PÁGINA 6 – RELATÓRIOS ══════════════ -->
+  <div class="page" id="page-relatorios">
+    <div class="section-title">Relatórios</div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="form-row" style="flex-wrap:wrap;gap:12px;">
+        <div class="form-group" style="min-width:160px;">
+          <label>Obra</label>
+          <select id="rel-obra">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width:140px;">
+          <label>Mês (de)</label>
+          <input type="month" id="rel-mes-de">
+        </div>
+        <div class="form-group" style="min-width:140px;">
+          <label>Mês (até)</label>
+          <input type="month" id="rel-mes-ate">
+        </div>
+        <div class="form-group" style="min-width:160px;">
+          <label>Supervisor</label>
+          <select id="rel-supervisor">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width:180px;">
+          <label>Serviço</label>
+          <select id="rel-servico">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width:160px;">
+          <label>Função</label>
+          <select id="rel-funcao">
+            <option value="">Todas</option>
+            <option value="prof">Profissional</option>
+            <option value="ajud">Ajudante/Servente</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width:160px;">
+          <label>Situação</label>
+          <select id="rel-situacao">
+            <option value="">Todas</option>
+            <option value="aberto">Em aberto</option>
+            <option value="encerrado">Encerrado</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width:200px;">
+          <label>Colaborador</label>
+          <input type="text" id="rel-colaborador" placeholder="Nome ou código...">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="gerarRelatorio()">🔍 Gerar Relatório</button>
+        <button class="btn btn-secondary" onclick="limparFiltrosRel()">✕ Limpar Filtros</button>
+        <button class="btn btn-success" id="btn-exportar-rel" onclick="exportarRelatorio()" style="display:none;">⬇ Exportar Excel</button>
+      </div>
+    </div>
+
+    <!-- Cards de totais -->
+    <div id="rel-totais" style="display:none;">
+      <div class="resumo-grid" id="rel-cards" style="margin-bottom:16px;"></div>
+
+      <!-- Agrupamentos -->
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+        <div style="flex:1;min-width:280px;">
+          <div class="section-title" style="font-size:13px;margin-bottom:8px;">Por Supervisor</div>
+          <div id="rel-por-supervisor"></div>
+        </div>
+        <div style="flex:1;min-width:280px;">
+          <div class="section-title" style="font-size:13px;margin-bottom:8px;">Por Serviço</div>
+          <div id="rel-por-servico"></div>
+        </div>
+      </div>
+
+      <!-- Tabela detalhada -->
+      <div class="section-title" style="font-size:13px;margin-bottom:8px;">Detalhamento por Colaborador</div>
+      <div class="table-wrap">
+        <table id="tabela-relatorio">
+          <thead>
+            <tr>
+              <th>Obra</th><th>Mês</th><th>Etapa</th><th>Cód.</th><th>Colaborador</th>
+              <th>Função</th><th>Supervisor</th><th>Serviço</th>
+              <th>Faltas</th><th>Qtd</th><th>Valor Unit.</th><th>Premiação</th><th>Situação</th>
+            </tr>
+          </thead>
+          <tbody id="rel-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="rel-vazio" class="no-data" style="display:none;">Nenhum resultado encontrado com os filtros selecionados.</div>
+  </div>
+
+  <!-- ══════════════ PÁGINA 7 – ADMIN ══════════════ -->
   <div class="page" id="page-admin">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <div class="section-title" style="margin-bottom:0;flex:1">Administração</div>
@@ -1614,17 +1708,18 @@ function goTab(id) {
     return;
   }
   document.querySelectorAll('.tab').forEach((t,i) => {
-    const ids = ['config','equipes','lancamento','resumo','historico','admin'];
+    const ids = ['config','equipes','lancamento','resumo','historico','relatorios','admin'];
     t.classList.toggle('active', ids[i] === id);
   });
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  if (id === 'equipes')   renderEquipesPage();
+  if (id === 'equipes')    renderEquipesPage();
   if (id === 'lancamento') renderLancamento();
-  if (id === 'resumo')    renderResumo();
-  if (id === 'historico') renderHistorico();
-  if (id === 'admin')     renderAdmin();
-  if (id === 'config')    renderConfig();
+  if (id === 'resumo')     renderResumo();
+  if (id === 'historico')  renderHistorico();
+  if (id === 'relatorios') renderRelatoriosFiltros();
+  if (id === 'admin')      renderAdmin();
+  if (id === 'config')     renderConfig();
 }
 
 function abrirSenha() {
@@ -2763,6 +2858,234 @@ function renderResumo() {
       <td class="premiacao-val">R$ ${r.premiacao.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>`;
     tbody.appendChild(tr);
   });
+}
+
+// ═══════════════════════════════════════════════════
+// RELATÓRIOS
+// ═══════════════════════════════════════════════════
+function renderRelatoriosFiltros() {
+  // Obras
+  const selObra = document.getElementById('rel-obra');
+  selObra.innerHTML = '<option value="">Todas</option>';
+  DB.obras.forEach(o => {
+    const op = document.createElement('option');
+    op.value = o.cod; op.textContent = `${o.cod} – ${o.nome}`;
+    selObra.appendChild(op);
+  });
+  // Supervisores
+  const selSup = document.getElementById('rel-supervisor');
+  selSup.innerHTML = '<option value="">Todos</option>';
+  (DB.supervisores || []).forEach(s => {
+    const op = document.createElement('option');
+    op.value = s; op.textContent = s;
+    selSup.appendChild(op);
+  });
+  // Serviços
+  const selSv = document.getElementById('rel-servico');
+  selSv.innerHTML = '<option value="">Todos</option>';
+  DB.servicos.forEach(s => {
+    const op = document.createElement('option');
+    op.value = s.cod; op.textContent = s.nome;
+    selSv.appendChild(op);
+  });
+}
+
+function limparFiltrosRel() {
+  ['rel-obra','rel-supervisor','rel-servico','rel-funcao','rel-situacao'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('rel-mes-de').value = '';
+  document.getElementById('rel-mes-ate').value = '';
+  document.getElementById('rel-colaborador').value = '';
+  document.getElementById('rel-totais').style.display = 'none';
+  document.getElementById('rel-vazio').style.display = 'none';
+  document.getElementById('btn-exportar-rel').style.display = 'none';
+}
+
+function coletarDadosRelatorio() {
+  // Coleta todos os snapshots de todos os envios do Firebase (obra atual)
+  // e de todos os envios salvos em DB
+  const filtroObra     = document.getElementById('rel-obra').value;
+  const filtroMesDe    = document.getElementById('rel-mes-de').value;
+  const filtroMesAte   = document.getElementById('rel-mes-ate').value;
+  const filtroSup      = document.getElementById('rel-supervisor').value;
+  const filtroSv       = document.getElementById('rel-servico').value;
+  const filtroFuncao   = document.getElementById('rel-funcao').value;
+  const filtroSit      = document.getElementById('rel-situacao').value;
+  const filtroColab    = document.getElementById('rel-colaborador').value.trim().toLowerCase();
+
+  const envios = DB.envios || [];
+  const linhas = [];
+
+  envios.forEach(env => {
+    if (!env.snapshot) return;
+    // Filtro obra
+    if (filtroObra && env.obra !== filtroObra) return;
+    // Filtro mês
+    if (filtroMesDe && env.mes < filtroMesDe) return;
+    if (filtroMesAte && env.mes > filtroMesAte) return;
+    // Filtro situação
+    if (filtroSit === 'encerrado' && !env.encerrado) return;
+    if (filtroSit === 'aberto' && env.encerrado) return;
+
+    env.snapshot.forEach(r => {
+      if (filtroSup && r.supervisor !== filtroSup) return;
+      if (filtroSv  && !r.servico.includes(DB.servicos.find(s=>s.cod===filtroSv)?.nome||'')) {
+        // tenta pelo cod também
+        const sv = DB.servicos.find(s => s.cod === filtroSv);
+        if (!sv || r.servico !== sv.nome) return;
+      }
+      if (filtroFuncao === 'prof' && isAjudante(r.funcao)) return;
+      if (filtroFuncao === 'ajud' && !isAjudante(r.funcao)) return;
+      if (filtroColab && !r.nome.toLowerCase().includes(filtroColab) && !r.cod.toLowerCase().includes(filtroColab)) return;
+
+      linhas.push({
+        obra: env.obraNome || env.obra,
+        mes: env.mes,
+        etapa: env.etapa,
+        situacao: env.encerrado ? 'Encerrado' : 'Em aberto',
+        ...r
+      });
+    });
+  });
+
+  return linhas;
+}
+
+function gerarRelatorio() {
+  const linhas = coletarDadosRelatorio();
+  const totais = document.getElementById('rel-totais');
+  const vazio  = document.getElementById('rel-vazio');
+  const btnExp = document.getElementById('btn-exportar-rel');
+
+  if (!linhas.length) {
+    totais.style.display = 'none';
+    vazio.style.display = 'block';
+    btnExp.style.display = 'none';
+    return;
+  }
+
+  vazio.style.display = 'none';
+  totais.style.display = 'block';
+  btnExp.style.display = 'inline-block';
+
+  const totalGeral = linhas.reduce((s, r) => s + (r.premiacao||0), 0);
+  const totalPessoas = new Set(linhas.map(r => r.cod)).size;
+  const totalEnvios = new Set(linhas.map(r => `${r.obra}|${r.mes}|${r.etapa}`)).size;
+
+  // Cards de totais
+  document.getElementById('rel-cards').innerHTML = `
+    <div class="resumo-card"><div class="resumo-label">Total Premiação</div><div class="resumo-valor">R$ ${totalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
+    <div class="resumo-card"><div class="resumo-label">Colaboradores</div><div class="resumo-valor">${totalPessoas}</div></div>
+    <div class="resumo-card"><div class="resumo-label">Registros</div><div class="resumo-valor">${linhas.length}</div></div>
+    <div class="resumo-card"><div class="resumo-label">Envios</div><div class="resumo-valor">${totalEnvios}</div></div>`;
+
+  // Por supervisor
+  const porSup = {};
+  linhas.forEach(r => {
+    if (!porSup[r.supervisor]) porSup[r.supervisor] = 0;
+    porSup[r.supervisor] += r.premiacao || 0;
+  });
+  let htmlSup = '<table style="width:100%;font-size:13px;"><tbody>';
+  Object.entries(porSup).sort((a,b)=>b[1]-a[1]).forEach(([sup, total]) => {
+    htmlSup += `<tr>
+      <td style="padding:4px 0;color:var(--branco)">${sup}</td>
+      <td style="text-align:right;color:var(--azul-claro);font-weight:700;font-family:'Barlow Condensed',sans-serif">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+    </tr>`;
+  });
+  htmlSup += '</tbody></table>';
+  document.getElementById('rel-por-supervisor').innerHTML = htmlSup;
+
+  // Por serviço
+  const porSv = {};
+  linhas.forEach(r => {
+    if (!porSv[r.servico]) porSv[r.servico] = 0;
+    porSv[r.servico] += r.premiacao || 0;
+  });
+  let htmlSv = '<table style="width:100%;font-size:12px;"><tbody>';
+  Object.entries(porSv).sort((a,b)=>b[1]-a[1]).forEach(([sv, total]) => {
+    htmlSv += `<tr>
+      <td style="padding:3px 0;color:var(--branco);font-size:11px">${sv}</td>
+      <td style="text-align:right;color:var(--azul-claro);font-weight:700;font-family:'Barlow Condensed',sans-serif;white-space:nowrap">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+    </tr>`;
+  });
+  htmlSv += '</tbody></table>';
+  document.getElementById('rel-por-servico').innerHTML = htmlSv;
+
+  // Tabela detalhada
+  const tbody = document.getElementById('rel-tbody');
+  tbody.innerHTML = '';
+  linhas.forEach(r => {
+    const tr = document.createElement('tr');
+    const sitColor = r.situacao === 'Encerrado' ? 'var(--verde)' : 'var(--azul-claro)';
+    tr.innerHTML = `
+      <td style="font-size:12px">${r.obra}</td>
+      <td style="font-size:12px">${r.mes}</td>
+      <td style="text-align:center">${r.etapa}</td>
+      <td>${r.cod}</td>
+      <td>${r.nome}</td>
+      <td style="font-size:12px">${r.funcao}</td>
+      <td>${r.supervisor}</td>
+      <td style="font-size:11px;max-width:160px">${r.servico}</td>
+      <td style="text-align:center">${r.faltas||0}</td>
+      <td style="text-align:center">${r.qtd} ${r.unidade||''}</td>
+      <td>R$ ${(r.valorUnit||0).toFixed(2)}</td>
+      <td class="premiacao-val">R$ ${(r.premiacao||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td style="font-size:11px;color:${sitColor};font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.5px">${r.situacao}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function exportarRelatorio() {
+  const linhas = coletarDadosRelatorio();
+  if (!linhas.length) { toast('Nenhum dado para exportar.', 'error'); return; }
+  const wb = XLSX.utils.book_new();
+  const rows = [
+    ['GLOBAL PREMIER CONSTRUTORA — RELATÓRIO DE PREMIAÇÃO'],
+    [],
+    ['OBRA','MÊS','ETAPA','CÓD. SIENGE','COLABORADOR','FUNÇÃO','SUPERVISOR','SERVIÇO','FALTAS','QTD','UNIDADE','VALOR UNIT.','PREMIAÇÃO','SITUAÇÃO'],
+  ];
+  linhas.forEach(r => {
+    rows.push([
+      r.obra, r.mes, r.etapa, r.cod, r.nome, r.funcao,
+      r.supervisor, r.servico, r.faltas||0,
+      r.qtd, r.unidade||'', r.valorUnit||0, r.premiacao||0, r.situacao
+    ]);
+  });
+  // Total
+  rows.push([]);
+  const total = linhas.reduce((s,r)=>s+(r.premiacao||0),0);
+  rows.push(['','','','','','','','','','','','TOTAL', total, '']);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [20,10,6,14,35,20,15,40,8,8,8,12,14,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+
+  // Aba por supervisor
+  const porSup = {};
+  linhas.forEach(r => {
+    if (!porSup[r.supervisor]) porSup[r.supervisor] = 0;
+    porSup[r.supervisor] += r.premiacao||0;
+  });
+  const rowsSup = [['SUPERVISOR','TOTAL PREMIAÇÃO (R$)']];
+  Object.entries(porSup).sort((a,b)=>b[1]-a[1]).forEach(([s,t]) => rowsSup.push([s,t]));
+  const ws2 = XLSX.utils.aoa_to_sheet(rowsSup);
+  ws2['!cols'] = [{wch:20},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Por Supervisor');
+
+  // Aba por serviço
+  const porSv = {};
+  linhas.forEach(r => {
+    if (!porSv[r.servico]) porSv[r.servico] = 0;
+    porSv[r.servico] += r.premiacao||0;
+  });
+  const rowsSv = [['SERVIÇO','TOTAL PREMIAÇÃO (R$)']];
+  Object.entries(porSv).sort((a,b)=>b[1]-a[1]).forEach(([s,t]) => rowsSv.push([s,t]));
+  const ws3 = XLSX.utils.aoa_to_sheet(rowsSv);
+  ws3['!cols'] = [{wch:50},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Por Serviço');
+
+  XLSX.writeFile(wb, `relatorio_premiacao_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.xlsx`);
+  toast('✓ Relatório Excel exportado!');
 }
 
 // ═══════════════════════════════════════════════════
