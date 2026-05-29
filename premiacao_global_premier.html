@@ -1476,8 +1476,8 @@ const USUARIOS_INICIAIS = {
 };
 
 function salvarDB() {
-  if (!obraAtualRef) return;
-  obraAtualRef.set(DB).catch(e => console.error('Erro ao salvar:', e));
+  if (!obraAtualRef) return Promise.resolve();
+  return obraAtualRef.set(DB).catch(e => console.error('Erro ao salvar:', e));
 }
 
 function carregarDBFirebase(obraCod, callback) {
@@ -2732,13 +2732,11 @@ function editarEnvio(envioId) {
     });
   }
 
-  salvarDB();
-  // Re-render do histórico e ir para lançamento
-  setTimeout(() => {
+  salvarDB().then(() => {
     renderLancamento();
     goTab('lancamento');
-  }, 300);
-  toast('Lançamento restaurado! Faça as alterações e envie novamente.');
+    toast('Lançamento restaurado! Faça as alterações e envie novamente.');
+  });
 }
 
 function encerrarEnvio(envioId) {
