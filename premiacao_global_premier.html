@@ -2680,7 +2680,10 @@ function renderHistorico() {
 }
 
 function editarEnvio(envioId) {
+  console.log('editarEnvio chamado, id:', envioId);
+  console.log('DB.envios:', JSON.stringify(DB.envios));
   const idx = (DB.envios || []).findIndex(e => e.id === envioId);
+  console.log('idx encontrado:', idx);
   if (idx < 0) { toast('Envio não encontrado.', 'error'); return; }
   const env = DB.envios[idx];
   if (env.encerrado) { toast('Este envio foi encerrado pelo admin e não pode ser editado.', 'error'); return; }
@@ -2732,11 +2735,16 @@ function editarEnvio(envioId) {
     });
   }
 
-  salvarDB().then(() => {
-    renderLancamento();
-    goTab('lancamento');
-    toast('Lançamento restaurado! Faça as alterações e envie novamente.');
-  });
+  // Salvar e renderizar imediatamente sem esperar Firebase
+  if (obraAtualRef) obraAtualRef.set(DB).catch(e => console.error('Erro ao salvar:', e));
+  console.log('=== APÓS EDITAR ===');
+  console.log('equipes:', JSON.stringify(DB.equipes));
+  console.log('lancamentos keys:', Object.keys(DB.lancamentos));
+  console.log('historico keys:', Object.keys(DB.historico_pagamentos||{}));
+  renderLancamento();
+  goTab('lancamento');
+  toast('Lançamento restaurado! Faça as alterações e envie novamente.');
+}
 }
 
 function encerrarEnvio(envioId) {
