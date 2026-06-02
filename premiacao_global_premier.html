@@ -1476,8 +1476,8 @@ const USUARIOS_INICIAIS = {
 };
 
 function salvarDB() {
-  if (!obraAtualRef) return Promise.resolve();
-  return obraAtualRef.set(DB).catch(e => console.error('Erro ao salvar:', e));
+  if (!obraAtualRef) return;
+  obraAtualRef.set(DB).catch(e => console.error('Erro ao salvar:', e));
 }
 
 function carregarDBFirebase(obraCod, callback) {
@@ -2680,10 +2680,9 @@ function renderHistorico() {
 }
 
 function editarEnvio(envioId) {
-  console.log('editarEnvio chamado, id:', envioId);
-  console.log('DB.envios:', JSON.stringify(DB.envios));
-  const idx = (DB.envios || []).findIndex(e => e.id === envioId);
-  console.log('idx encontrado:', idx);
+  // Garantir que DB.envios é array (Firebase pode ter corrompido)
+  if (!Array.isArray(DB.envios)) DB.envios = Object.values(DB.envios || {});
+  const idx = DB.envios.findIndex(e => String(e.id) === String(envioId));
   if (idx < 0) { toast('Envio não encontrado.', 'error'); return; }
   const env = DB.envios[idx];
   if (env.encerrado) { toast('Este envio foi encerrado pelo admin e não pode ser editado.', 'error'); return; }
@@ -2735,16 +2734,13 @@ function editarEnvio(envioId) {
     });
   }
 
-  // Salvar e renderizar imediatamente sem esperar Firebase
-  if (obraAtualRef) obraAtualRef.set(DB).catch(e => console.error('Erro ao salvar:', e));
-  console.log('=== APÓS EDITAR ===');
-  console.log('equipes:', JSON.stringify(DB.equipes));
-  console.log('lancamentos keys:', Object.keys(DB.lancamentos));
-  console.log('historico keys:', Object.keys(DB.historico_pagamentos||{}));
-  renderLancamento();
-  goTab('lancamento');
+  salvarDB();
+  // Re-render do histórico e ir para lançamento
+  setTimeout(() => {
+    renderLancamento();
+    goTab('lancamento');
+  }, 300);
   toast('Lançamento restaurado! Faça as alterações e envie novamente.');
-}
 }
 
 function encerrarEnvio(envioId) {
