@@ -476,7 +476,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>Mês de Referência</label>
-          <input type="month" id="cfg-mes" onchange="onMesChange(this.value)">
+          <input type="month" id="cfg-mes" onchange="onMesChange(this.value)" style="color:#1a1a2e">
         </div>
         <div class="form-group">
           <label>Obra</label>
@@ -1072,7 +1072,7 @@ function renderConfig() {
   DB.obras.forEach(o => { const op = document.createElement('option'); op.value = o.cod; op.textContent = `${o.cod} – ${o.nome}`; sel.appendChild(op); });
   const c = DB.config;
   const hoje = new Date(); const mesMin = hoje.toISOString().slice(0,7);
-  document.getElementById('cfg-mes').min = mesMin;
+  document.getElementById('cfg-mes').removeAttribute('min');
   document.getElementById('cfg-mes').value = c.mes || mesMin;
   document.getElementById('cfg-engenheiro').value = c.engenheiro || '';
   document.getElementById('cfg-etapa').value = c.etapa || 1;
