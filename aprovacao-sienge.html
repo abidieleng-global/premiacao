@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aprovação de Solicitações — Sienge</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brand: #1A56A0;
+    --brand-light: #E6F1FB;
+    --brand-dark: #0C3D78;
+    --success: #2E7D32;
+    --success-bg: #EAF3DE;
+    --danger: #A32D2D;
+    --danger-bg: #FCEBEB;
+    --warn-bg: #FFF8E1;
+    --warn: #856B00;
+    --gray-50: #F7F8FA;
+    --gray-100: #EAECF0;
+    --gray-300: #C0C5CF;
+    --gray-500: #6B7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 0.5px rgba(0,0,0,0.06);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  header {
+    background: #fff;
+    border-bottom: 1px solid var(--gray-100);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--brand);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.5px;
+  }
+
+  header h1 { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+  header span { font-size: 13px; color: var(--gray-500); margin-left: 4px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  .panel {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; font-weight: 500; color: var(--gray-700); }
+
+  input[type="text"],
+  input[type="password"],
+  input[type="number"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--gray-900);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(26,86,160,0.1); }
+
+  .btn {
+    padding: 8px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--brand); color: #fff; }
+  .btn-primary:hover { background: var(--brand-dark); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  .info-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+
+  .metric {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+  }
+  .metric-label { font-size: 11px; font-weight: 500; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .metric-value { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); background: #fff; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  thead th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-100);
+    white-space: nowrap;
+  }
+  thead th.num { text-align: right; }
+
+  tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-900);
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #FAFBFD; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-sim { background: var(--success-bg); color: var(--success); }
+  .badge-nao { background: var(--danger-bg); color: var(--danger); }
+
+  .saldo-ok { color: var(--success); font-weight: 600; }
+  .saldo-neg { color: var(--danger); font-weight: 600; }
+  .saldo-na { color: var(--gray-300); }
+
+  .alert {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .alert-error { background: var(--danger-bg); color: var(--danger); border: 1px solid #F7C1C1; }
+  .alert-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid #FFE082; }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .credencial-salva {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .toggle-cred {
+    background: none;
+    border: none;
+    color: var(--brand);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  #credSection { transition: all 0.2s; }
+
+  .footer {
+    text-align: center;
+    color: var(--gray-500);
+    font-size: 12px;
+    margin-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  @media (max-width: 700px) {
+    .form-row { grid-template-columns: 1fr; }
+    .container { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">S</div>
+  <h1>Aprovação de solicitações <span>— Sienge / Global Premier</span></h1>
+</header>
+
+<div class="container">
+
+  <input type="hidden" id="apiUser" value="globalpremier-solicitacoes" />
+  <input type="hidden" id="apiPass" value="YSc730gkWl3QYiDPcBsmcUYWDw5IhP4O" />
+
+  <div class="panel">
+    <div class="panel-title">Consulta</div>
+    <div class="form-row" style="grid-template-columns: 1fr auto;">
+      <div class="field">
+        <label for="solicitacaoId">Número da solicitação</label>
+        <input type="number" id="solicitacaoId" placeholder="Ex: 2927" min="1" />
+      </div>
+      <button class="btn btn-primary" id="btnBuscar" onclick="buscar()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Consultar
+      </button>
+    </div>
+    <div id="alertBox"></div>
+  </div>
+
+  <div id="resultado" style="display:none;">
+    <div class="info-bar" id="infoBar"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:20%">Insumo</th>
+            <th style="width:25%">Item apropriado (serviço)</th>
+            <th style="width:7%">Aut.</th>
+            <th style="width:6%">Und.</th>
+            <th class="num" style="width:10%">Qtd. orçada<br><span style="font-weight:400;text-transform:none;letter-spacing:0">no serviço</span></th>
+            <th class="num" style="width:10%">Qtd. solicitada</th>
+            <th class="num" style="width:10%">Já aprop.</th>
+            <th class="num" style="width:12%">Saldo orçamento</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">Global Premier Ltda · Sienge API · <span id="dataHora"></span></div>
+</div>
+
+<script>
+const BASE = 'https://api.sienge.com.br/globalpremier/public/api/v1';
+
+document.getElementById('dataHora').textContent = new Date().toLocaleString('pt-BR');
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('solicitacaoId').addEventListener('keydown', e => { if (e.key === 'Enter') buscar(); });
+});
+
+function getAuth() {
+  const u = document.getElementById('apiUser').value.trim();
+  const p = document.getElementById('apiPass').value.trim();
+  return 'Basic ' + btoa(u + ':' + p);
+}
+
+function showAlert(msg, tipo = 'error') {
+  document.getElementById('alertBox').innerHTML =
+    `<div class="alert alert-${tipo}"><span>${msg}</span></div>`;
+}
+function clearAlert() { document.getElementById('alertBox').innerHTML = ''; }
+
+async function apiFetch(path) {
+  const res = await fetch(BASE + path, {
+    headers: { 'Authorization': getAuth(), 'Accept': 'application/json' }
+  });
+  if (res.status === 401) throw new Error('Credenciais inválidas. Verifique usuário e senha de API.');
+  if (res.status === 404) throw new Error(`Solicitação não encontrada (404).`);
+  if (!res.ok) throw new Error(`Erro ${res.status} ao consultar ${path}`);
+  return res.json();
+}
+
+async function buscar() {
+  clearAlert();
+  const id = document.getElementById('solicitacaoId').value.trim();
+
+  if (!id) { showAlert('Informe o número da solicitação.'); return; }
+
+  const btn = document.getElementById('btnBuscar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Consultando...';
+  document.getElementById('resultado').style.display = 'none';
+
+  try {
+    const sol = await apiFetch(`/purchase-requests/${id}`);
+    const items = sol.items || sol.purchaseRequestItems || sol.data?.items || [];
+    if (!items.length) throw new Error('Nenhum insumo encontrado nesta solicitação.');
+
+    const linhas = [];
+
+    for (const item of items) {
+      const itemNum = item.sequentialNumber ?? item.itemNumber ?? item.number ?? item.id;
+      const insumoDesc = item.resourceDescription || item.description || `#${itemNum}`;
+      const und = item.unitOfMeasure || item.unit || '-';
+      const qtdSolicitada = parseFloat(item.quantity ?? item.requestedQuantity ?? 0);
+      const aut = item.authorized ?? item.authorization ?? item.authorizationStatus;
+      const autLabel = (aut === true || aut === 'Sim' || aut === 'S' || aut === 'AUTHORIZED') ? 'Sim' : 'Não';
+
+      let apropriacoes = [];
+      try {
+        const r = await apiFetch(`/purchase-requests/${id}/items/${itemNum}/buildings-appropriations`);
+        apropriacoes = r.results || r.items || r.data || (Array.isArray(r) ? r : []);
+      } catch(e) { apropriacoes = []; }
+
+      if (!apropriacoes.length) {
+        linhas.push({ insumoDesc, und, qtdSolicitada, autLabel, servico: '—', qtdOrcada: null, qtdAprop: 0 });
+        continue;
+      }
+
+      for (const ap of apropriacoes) {
+        const servico = ap.budgetItemDescription || ap.itemDescription || ap.description || ap.name || '—';
+        const qtdAprop = parseFloat(ap.appropriatedQuantity ?? ap.quantity ?? ap.appropriated ?? 0);
+        const qtdOrcada = ap.budgetedQuantity != null ? parseFloat(ap.budgetedQuantity)
+                        : ap.budgetQuantity != null ? parseFloat(ap.budgetQuantity)
+                        : ap.budgeted != null ? parseFloat(ap.budgeted)
+                        : null;
+        linhas.push({ insumoDesc, und, qtdSolicitada, autLabel, servico, qtdOrcada, qtdAprop });
+      }
+    }
+
+    renderInfoBar(sol, id);
+    renderTabela(linhas);
+    document.getElementById('resultado').style.display = 'block';
+    document.getElementById('dataHora').textContent = new Date().toLocaleString('pt-BR');
+
+  } catch(e) {
+    showAlert(e.message || 'Erro inesperado ao consultar a API.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Consultar`;
+  }
+}
+
+function renderInfoBar(sol, id) {
+  const obra = sol.buildingName || sol.building || sol.projectName || sol.constructionName || '—';
+  const solicitante = sol.requesterName || sol.requester || sol.requestedBy || '—';
+  const data = sol.requestDate || sol.date || sol.createdAt || '—';
+  const status = sol.status || sol.situation || '—';
+  document.getElementById('infoBar').innerHTML = `
+    <div class="metric"><div class="metric-label">Solicitação</div><div class="metric-value">#${id}</div></div>
+    <div class="metric"><div class="metric-label">Obra</div><div class="metric-value">${obra}</div></div>
+    <div class="metric"><div class="metric-label">Solicitante</div><div class="metric-value">${solicitante}</div></div>
+    <div class="metric"><div class="metric-label">Data</div><div class="metric-value">${data}</div></div>
+    <div class="metric"><div class="metric-label">Status</div><div class="metric-value">${status}</div></div>
+  `;
+}
+
+function renderTabela(linhas) {
+  const tbody = document.getElementById('tabelaBody');
+  if (!linhas.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--gray-500);">Nenhum dado encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = linhas.map(l => {
+    const saldoVal = l.qtdOrcada !== null ? (l.qtdOrcada - l.qtdAprop) : null;
+    const saldoHtml = saldoVal === null
+      ? `<span class="saldo-na">—</span>`
+      : saldoVal >= 0
+        ? `<span class="saldo-ok">${fmt(saldoVal)}</span>`
+        : `<span class="saldo-neg">(${fmt(Math.abs(saldoVal))})</span>`;
+    const orcHtml = l.qtdOrcada !== null
+      ? fmt(l.qtdOrcada)
+      : `<span style="color:var(--gray-300)">—</span>`;
+    const autBadge = l.autLabel === 'Sim'
+      ? `<span class="badge badge-sim">Sim</span>`
+      : `<span class="badge badge-nao">Não</span>`;
+    return `<tr>
+      <td>${l.insumoDesc}</td>
+      <td>${l.servico}</td>
+      <td>${autBadge}</td>
+      <td>${l.und}</td>
+      <td class="num">${orcHtml}</td>
+      <td class="num">${fmt(l.qtdSolicitada)}</td>
+      <td class="num">${fmt(l.qtdAprop)}</td>
+      <td class="num">${saldoHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function fmt(n) {
+  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+</script>
+</body>
+</html>
